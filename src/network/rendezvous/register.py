@@ -6,10 +6,10 @@ def REGISTER():
     #Mensagem de registro
     registro = {
         "type": "REGISTER",
-        "namespace": "grupo8",
+        "namespace": "CIC",
         "name": nome,
         "port": 4000, #Porta do meu peer
-        "ttl": 3600 #1h de ttl
+        "ttl": 7200 #2h de ttl
     }
 
     #Converte o dicionario em json
