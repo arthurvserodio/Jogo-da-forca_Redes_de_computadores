@@ -3,12 +3,13 @@ import json
 from .operacoes.register import REGISTER
 from .operacoes.discover import *
 from .operacoes.unregister import UNREGISTER
+from .importConfig.carregaConfig import *
 
-def connectServer(mensagemRequisicao):
+def connectServer(mensagemOperacao,config):
     #Nome do servidor rendezvous
-    serverName = "pyp2p.mfcaetano.cc"
+    serverName = config["rdv_host"]
     #Conecta a porta 8080
-    serverPort = 8080
+    serverPort = config["rdv_port"]
     clientSocket = socket(AF_INET,SOCK_STREAM) #Cria o socket cliente da conexão TCP
     try: 
         #TimeOut para deixar a comunicação TCP eficaz
@@ -16,7 +17,7 @@ def connectServer(mensagemRequisicao):
         clientSocket.settimeout(5)
 
         clientSocket.connect((serverName,serverPort)) #Conecta com o servidor Rendevouz
-        clientSocket.sendall(mensagemRequisicao.encode("utf-8"))
+        clientSocket.sendall(mensagemOperacao.encode("utf-8"))
         resposta = clientSocket.recv(1024) # Buffer de 1024 bytes
         #JSON -> DICIONARIO
         respostaJSON = json.loads(resposta.decode("utf-8"))
@@ -28,32 +29,3 @@ def connectServer(mensagemRequisicao):
     #Fecha a conexão
     finally:
         clientSocket.close()
-
-if __name__ == "__main__":
-    print("Conectado ao Rendevouz")
-    #pega a mensagem JSON
-    mensagemRegister = REGISTER()
-    respostaRegister = connectServer(mensagemRegister)
-    print("Resposta do Rendevouz: ", respostaRegister)
-    #Se o status da resposta for OK, então o registro deu certo
-    if(respostaRegister["status"] == "OK"):
-        print("Registro feito com sucesso")
-        dadosRegister = json.loads(mensagemRegister)
-        #Quem sou eu?
-        meu_peer = {
-            "name": dadosRegister["name"],
-            "ip": respostaRegister["ip"],
-            "port": respostaRegister["port"]
-        }
-        #Se o registro foi um sucesso, descubra os nós que estão registrados
-        respostaDiscover = connectServer(DISCOVER())
-        print("Resposta do Discover: ", respostaDiscover)
-        print("Resposta do Discover FILTRADO: ", filtro_discover(respostaDiscover["peers"], meu_peer))
-
-        irEmbora = input("Deseja sair do jogo? ")
-        if irEmbora  == "sim":
-            connectServer(UNREGISTER(meu_peer))
-    #Se não, informa o motivo
-    else:
-        print("Erro no registro: ", respostaRegister.get("message"))
-
