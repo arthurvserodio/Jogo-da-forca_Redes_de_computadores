@@ -1,7 +1,8 @@
 from socket import *
 import json
-from .register import REGISTER
-from .discover import *
+from .operacoes.register import REGISTER
+from .operacoes.discover import *
+from .operacoes.unregister import UNREGISTER
 
 def connectServer(mensagemRequisicao):
     #Nome do servidor rendezvous
@@ -48,6 +49,10 @@ if __name__ == "__main__":
         respostaDiscover = connectServer(DISCOVER())
         print("Resposta do Discover: ", respostaDiscover)
         print("Resposta do Discover FILTRADO: ", filtro_discover(respostaDiscover["peers"], meu_peer))
+
+        irEmbora = input("Deseja sair do jogo? ")
+        if irEmbora  == "sim":
+            connectServer(UNREGISTER(meu_peer))
     #Se não, informa o motivo
     else:
         print("Erro no registro: ", respostaRegister.get("message"))

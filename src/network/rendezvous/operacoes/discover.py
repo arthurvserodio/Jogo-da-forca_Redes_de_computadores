@@ -1,7 +1,7 @@
 import json
 #Método de discover
 def DISCOVER():
-    #Mensagem de requisição DISCOVER 
+    #Mensagem da operação DISCOVER 
     descubra = {
         "type": "DISCOVER",
         "namespace": "CIC",
