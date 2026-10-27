@@ -25,7 +25,28 @@ def connectServer(mensagemOperacao,config):
         return respostaJSON
     #Se passou de 5 seg para estabelecer a conexão
     except timeout:
-        print("Tempo de conexão excedeu")
+        print("Erro: Tempo de conexão excedeu")
+        return None
+    #Não encontrou o servidor
+    except gaierror:
+        print("Erro de DNS: não foi possível localizar o servidor")
+        return None
+    #O servidor recusou a conexão
+    except ConnectionRefusedError:
+        print("Erro: conexão recusada pelo servidor")
+        return None
+    #O servidor interrompeu a conexão
+    except ConnectionResetError:
+        print("Erro: conexão interrompida pelo servidor")
+        return None
+    #A resposta JSON é inválida
+    except json.JSONDecodeError:
+        print("Erro: resposta JSON inválida")
+        return None
+    #Um erro mais geral, pega os erros que pode dar no OS
+    except OSError as erro:
+        print("Erro de comunicação TCP:", erro)
+        return None
     #Fecha a conexão
     finally:
         clientSocket.close()
