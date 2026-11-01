@@ -1,16 +1,15 @@
 from src.network.rendezvous.funcionalidades.funcoes import (
-    registrar_peer,
     descobrir_peers,
     desregistrar_peer,
     refresh_peer,
-    termina_refresh
+    registrar_peer,
+    termina_refresh,
 )
 
 # Registra o peer
 respostaRegister = registrar_peer()
 
 if respostaRegister and respostaRegister.get("status") == "OK":
-
     # Inicia o refresh
     parar, thread = refresh_peer(respostaRegister)
 
