@@ -1,10 +1,11 @@
 import json
+from pathlib import Path
+from typing import cast
 
-def carregaConfig():
-    #Abre o config para leitura
-    arquivo = open("config.json", "r", encoding="utf-8")
-    #Transforma o JSON em dicionario
-    config = json.load(arquivo)
-    #Fecha o arquivo de leitura
-    arquivo.close()
-    return config
+from ..types import Config
+
+
+def carregaConfig() -> Config:
+    path = Path(__file__).resolve().parents[4] / "config.json"
+    with path.open(encoding="utf-8") as arquivo:
+        return cast(Config, json.load(arquivo))
