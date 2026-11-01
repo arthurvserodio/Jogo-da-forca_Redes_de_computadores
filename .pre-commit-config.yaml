@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: quality
+        name: Ruff e mypy (ambiente travado)
+        entry: uv run --locked python scripts/check.py
+        language: system
+        pass_filenames: false
+        always_run: true
