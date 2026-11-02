@@ -1,13 +1,16 @@
 import json
 
-def UNREGISTER(config):
-    #Mensagem da operação UNREGISTER
-    unregister={
+from ..types import Config
+
+
+def UNREGISTER(config: Config) -> str:
+    # Mensagem da operação UNREGISTER
+    unregister = {
         "type": "UNREGISTER",
         "namespace": config["namespace"],
         "name": config["name"],
-        "port": config["listen_port"]
+        "port": config["listen_port"],
     }
 
-    #Coverte de dicionario para JSON
+    # Coverte de dicionario para JSON
     return json.dumps(unregister) + "\n"
