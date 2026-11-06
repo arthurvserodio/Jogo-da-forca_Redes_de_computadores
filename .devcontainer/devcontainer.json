@@ -1,0 +1,9 @@
+{
+  "name": "PyP2P-Forca Linux",
+  "build": {"dockerfile": "../Dockerfile", "context": ".."},
+  "remoteEnv": {"UV_PROJECT_ENVIRONMENT": "/opt/forca-venv"},
+  "postCreateCommand": "uv sync --locked && uv run --locked pre-commit install",
+  "customizations": {
+    "vscode": {"extensions": ["ms-python.python", "charliermarsh.ruff", "ms-python.mypy-type-checker"]}
+  }
+}
