@@ -18,7 +18,7 @@ def mask(palavra,letras_certas):
     mascara = ''
     for letra in palavra:
         if letra in letras_certas:
-            mascara += letra
+            mascara += letra.lower()
         else:
             mascara += '_'
         mascara+= ' '
