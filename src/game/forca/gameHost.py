@@ -3,6 +3,7 @@ import secrets
 from src.game.fsm.MaqEstadosJogo import MaqEstadosJogo
 from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
 from src.game.forca.forca import Forca
+from src.game.forca.palavra import mask
 
 class GameHost: 
     def __init__(self, host_id, config):
@@ -67,3 +68,33 @@ class GameHost:
         self.game_state = MaqEstadosJogo.RUNNING #Muda o estado para running
         self.turno_atual = self.players[0] #Define o primeiro jogador da lista como o jogador do turno atual
         return True
+
+    #Obter o status do jogo
+    def obter_status(self):
+        #Verifica se existe um jogo
+        if self.game_id == None:
+            return None
+
+        #Se tem o jogo, retorna várias coisas
+        if self.game_state == MaqEstadosJogo.OPEN:
+            return {
+                "game_id": self.game_id,
+                "estado": self.game_state.name,
+                "jogadores": self.players.copy(),
+                "max_players": self.max_players,
+            }
+        elif self.game_state == MaqEstadosJogo.RUNNING:
+            return {
+                "game_id": self.game_id,
+                "host_id": self.host_id,
+                "palavra_mask": mask(self.forca.palavra, self.forca.letras_certas),
+                "estado": self.game_state.name,
+                "jogadores": self.players.copy(),
+                "vidas": self.forca.vidas,
+                "letras_erradas": (self.forca.letras_usadas - self.forca.letras_certas).copy(),
+                "turno_atual": self.turno_atual,
+            }
+        return {
+            "game_id": self.game_id,
+            "estado": self.game_state.name
+        }

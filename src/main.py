@@ -1,8 +1,10 @@
 import argparse
-from src.interface.cli import interpretar_comando,executar_comando
+import logging
+from src.interface.cli import interpretar_comando
+from src.interface.executar import executar_comando
 from src.game.forca.gameHost import GameHost
 from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
-
+from src.interface.executar import mostra_status_jogo
 def main():
     # Carrega as configurações
     config = carregaConfig()
@@ -12,6 +14,17 @@ def main():
 
     # Cria uma única instância do GameHost
     game_host = GameHost(host_id, config)
+    logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+    datefmt="%H:%M:%S"
+)
+    game_host.criar_jogo("banana", 6)
+    game_host.adicionar_jogador("bob@CIC", None)
+    game_host.iniciar_jogo()
+
+    status = game_host.obter_status()
+    mostra_status_jogo(status, config)
 
     # Loop interativo
     while True:

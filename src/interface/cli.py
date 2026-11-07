@@ -213,3 +213,7 @@ def executar_comando(args,game_host,config):
             print("Partida cancelada!")
         else:
             print("Não foi possível cancelar a partida.")
+            
+#Mostra a TAG de game
+def mostrar_Game(mensagem):
+    print(f"[GAME] {mensagem}")
