@@ -53,9 +53,8 @@ typecheck:
 test:
 	$(UV) run --locked python -m unittest discover -s tests
 
-# src/main.py ainda está vazio; este alvo usa o exemplo existente.
 run:
-	$(UV) run --locked python -m src.network.rendezvous.teste
+	$(UV) run --locked python -m src.main
 
 docker-build:
 	$(DOCKER) build -t $(IMAGE) .
