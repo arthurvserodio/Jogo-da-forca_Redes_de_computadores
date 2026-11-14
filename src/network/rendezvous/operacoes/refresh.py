@@ -1,8 +1,5 @@
 import threading
 from collections.abc import Callable
-from ..connectRendezvous import connectServer
-from ..types import Config
-from .register import REGISTER
 
 
 def iniciar_refresh( refresh_registro: Callable[[int, threading.Event], None], ttl: int) -> tuple[threading.Event, threading.Thread]:

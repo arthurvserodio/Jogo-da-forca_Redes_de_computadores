@@ -1,11 +1,12 @@
-import time
-import secrets
 import hashlib
+import secrets
+import time
 from copy import deepcopy
-from src.game.fsm.MaqEstadosJogo import MaqEstadosJogo
-from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
+
 from src.game.forca.forca import Forca
 from src.game.forca.palavra import mask
+from src.game.fsm.MaqEstadosJogo import MaqEstadosJogo
+
 
 class GameHost: 
     def __init__(self, host_id, config):
@@ -155,7 +156,7 @@ class GameHost:
     #Obter o status do jogo
     def obter_status(self):
         #Verifica se existe um jogo
-        if self.game_id == None:
+        if self.game_id is None:
             return None
 
         #Se tem o jogo, retorna várias coisas
@@ -309,7 +310,7 @@ class GameHost:
         if self.game_state != MaqEstadosJogo.RUNNING:
             return False
         #Verifica se tem um turno ativo
-        if self.turno_atual == None or self.inicio_turno == None:
+        if self.turno_atual is None or self.inicio_turno is None:
             return False
         #Calcula quanto tempo passou
         tempo_transcorrido = time.monotonic() - self.inicio_turno
@@ -358,7 +359,7 @@ class GameHost:
     #Gerar pega o ultimo estado sem incrementar o STATE
     def obter_UltimoEstado(self):
         #Se não existe ultimo estado, então retorna nada
-        if self.ultimo_estado == None:
+        if self.ultimo_estado is None:
             return None
         return deepcopy(self.ultimo_estado)
 

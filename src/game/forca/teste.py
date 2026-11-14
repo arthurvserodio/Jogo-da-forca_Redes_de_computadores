@@ -1,5 +1,6 @@
 from .forca import Forca
 
+
 def testar_forca():
     jogo = Forca("banana", 6)
 

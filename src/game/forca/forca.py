@@ -1,5 +1,6 @@
+from .jogada import validade_palpite
 from .palavra import normalizando_word, valida_word
-from .jogada import *
+
 
 class Forca:
     def __init__(self, palavra,vidas):

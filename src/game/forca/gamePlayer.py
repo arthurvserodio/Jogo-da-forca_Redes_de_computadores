@@ -1,5 +1,8 @@
-from src.game.fsm.MaqEstadosJogador import MaqEstadosJogadores
 import hashlib
+
+from src.game.fsm.MaqEstadosJogador import MaqEstadosJogadores
+
+
 class GamePlayer:
     def __init__(self, player_id):
         #ATRIBUTOS
@@ -84,7 +87,8 @@ class GamePlayer:
         #Só guarda a última jogada se ela não for None
         if mensagemHost['last_guess'] is not None:
             self.ultimaJogada = mensagemHost['last_guess']
-        else: self.ultimaJogada = None
+        else: 
+            self.ultimaJogada = None
 
         return True
 

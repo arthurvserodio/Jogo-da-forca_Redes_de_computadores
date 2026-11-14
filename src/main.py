@@ -3,15 +3,13 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from src.config.loader import ConfigLoader
-#RendevouzManeger
-from src.network.rendezvous.RendezvousManeger import RendezvousManeger
-#CLI
-from src.interface.cli import interpretar_comando, mostrar_ajuda
-from src.interface.executar import executar_comando
-#Game
 from src.game.forca.gameHost import GameHost
 from src.game.forca.gamePlayer import GamePlayer
 from src.game.lobby.lobby import Lobby
+from src.interface.cli import interpretar_comando, mostrar_ajuda
+from src.interface.executar import executar_comando
+from src.network.rendezvous.RendezvousManeger import RendezvousManeger
+
 
 def main() -> None:
     # Carregar as configurações
@@ -89,7 +87,7 @@ def main() -> None:
                 print("Encerrando o programa...")
                 break
             # Executa os demais comandos
-            mensagem = executar_comando(args,game_host,config,lobby)
+            executar_comando(args,game_host,config,lobby)
             #IMPELEMNTAR O ENVIO PELA REDE -> FUTURO
 
         except ValueError as erro:

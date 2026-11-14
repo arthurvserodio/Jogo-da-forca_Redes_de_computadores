@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class MaqEstadosJogo(Enum):
     IDLE = "IDLE",
     OPEN = "OPEN",

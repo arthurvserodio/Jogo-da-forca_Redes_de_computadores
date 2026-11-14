@@ -1,10 +1,9 @@
-import random
 import logging
-from src.game.forca.gameHost import GameHost
-from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
-from src.network.rendezvous.funcionalidades.funcoes import descobrir_peers
+import random
+
 from src.interface.cli import mostrar_Game
-from src.game.fsm.MaqEstadosJogo import MaqEstadosJogo
+from src.network.rendezvous.funcionalidades.funcoes import descobrir_peers
+
 
 def executar_comando(args,game_host,config,lobby=None):
     comando = args['comando']
@@ -14,7 +13,7 @@ def executar_comando(args,game_host,config,lobby=None):
         #Se for --random
         if args['random']:
             #Pega uma palavra do arquivo word
-            with open('words.txt', 'r', encoding='utf-8') as arquivo:
+            with open('words.txt', encoding='utf-8') as arquivo:
                 conteudo = arquivo.read()
                 list_palavra = conteudo.split()
                 palavra = random.choice(list_palavra) #random choice para pegar uma palavra aleatoria
@@ -111,7 +110,7 @@ def executar_comando(args,game_host,config,lobby=None):
     elif comando == "/status":
         status = game_host.obter_status()
         #Se não tem nenhuma partida, então o status é None
-        if status == None:
+        if status is None:
             mostrar_Game("Nenhuma partida hospedada")
             return
         if status['estado'] == "OPEN" :
@@ -146,11 +145,11 @@ def executar_comando(args,game_host,config,lobby=None):
         peers = descobrir_peers()
         peers_filter = []
         #Se retornou None é pq deu errado
-        if peers == None:
+        if peers is None:
             print("Não foi possível consultar os peers")
             return
         #Filtra por namespace
-        if filtro != None and filtro != "*":
+        if filtro is not None and filtro != "*":
             namespace = filtro[1:]
             #Só coloca em peers filtrados aqueles que tem o namespace desejado
             for peer in peers:

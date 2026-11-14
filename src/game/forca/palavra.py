@@ -1,4 +1,6 @@
 from unidecode import unidecode
+
+
 #Normalizando a palavra
 def normalizando_word(palavra):
     palavra = palavra.lower() #Transforma a palavra em letra minuscula

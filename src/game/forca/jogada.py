@@ -1,4 +1,6 @@
 from .palavra import normalizando_word, valida_word
+
+
 #Verifica se o palpite que coloquei pode
 def validade_palpite(string, letras_usadas, tipo):
     #Normaliza o digitado

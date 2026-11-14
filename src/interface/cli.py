@@ -1,9 +1,10 @@
 import argparse
-import shlex
-import re
 import random
+import re
+import shlex
+
 from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
-from src.game.forca.gameHost import GameHost
+
 
 class ParserCLI(argparse.ArgumentParser):
     #Evita que o argparse feche o programa ao encontrar um erro, e lança uma exceção ValueError
@@ -26,13 +27,13 @@ def criar_parser():
     peers.add_argument("filtro", nargs="?")
 
     #/conn (sem argumentos) - Listar conexões ativas 
-    conn = comandos.add_parser("/conn", add_help=False)
+    comandos.add_parser("/conn", add_help=False)
 
     #/rtt (sem argumentos) - Exibir RTT médio por peer
-    rtt = comandos.add_parser("/rtt", add_help=False)
+    comandos.add_parser("/rtt", add_help=False)
 
     #/reconnect (sem argumentos) - Forçar reconciliação imediata com o Rendezvous
-    reconnect = comandos.add_parser("/reconnect", add_help=False)
+    comandos.add_parser("/reconnect", add_help=False)
 
     #/log <nivel> (sem argumentos) - Ajustar nível de log (DEBUG, INFO, WARNING, ERROR)
     log = comandos.add_parser("/log", add_help=False)
@@ -45,20 +46,20 @@ def criar_parser():
     create.add_argument('--random', action="store_true")
 
     #/start (sem argumentos) - Iniciar a partida hospedada (exige ≥1 jogador)
-    start = comandos.add_parser("/start", add_help=False)
+    comandos.add_parser("/start", add_help=False)
 
     #/cancel (sem argumentos) - Cancelar a partida hospedada (OPEN ou RUNNING → ABORTED)
-    cancel = comandos.add_parser("/cancel", add_help=False)
+    comandos.add_parser("/cancel", add_help=False)
 
     #/games (sem argumentos) - Enviar GAME_LIST a todos os vizinhos e listar partidas abertas
-    games = comandos.add_parser("/games", add_help=False)
+    comandos.add_parser("/games", add_help=False)
 
     #/join <host_peer_id> - Entra na partida hospedada pelo peer indicado
     join = comandos.add_parser("/join", add_help=False)
     join.add_argument('host_peer_id')
 
     #/leave (sem argumentos) - Sai da partida atual
-    leave = comandos.add_parser("/leave", add_help=False)
+    comandos.add_parser("/leave", add_help=False)
 
     #/guess <letra> - Palpite de letra 
     guess = comandos.add_parser("/guess", add_help=False)
@@ -69,13 +70,13 @@ def criar_parser():
     word.add_argument('palavra')
 
     #/status (sem argumentos) - Exibir estado local da partida (forca, letras, vidas, vez de quem)
-    status = comandos.add_parser("/status", add_help=False)
+    comandos.add_parser("/status", add_help=False)
 
     #/quit (sem argumentos) - Encerrar: LEAVE/GAME_OVER conforme o papel, BYE a todos, UNREGISTER
-    quit = comandos.add_parser("/quit", add_help=False)
+    comandos.add_parser("/quit", add_help=False)
 
     #/help (sem argumentos) - Listar comandos
-    help = comandos.add_parser("/help", add_help=False)
+    comandos.add_parser("/help", add_help=False)
 
     return parser #Lista de regras da minha CLI
 
@@ -98,9 +99,9 @@ def interpretar_comando(comando):
         #Se tiver digitado --random
         if args.random:
             #Não permite uma palavra junto com create
-            if not args.palavra == None:
+            if args.palavra is not None:
                 #Como vc coloca /create --random 4, o 4 é considerado uma palavra, então a gente tem que mudar isso
-                if args.palavra.isdigit() and args.max_players == None:
+                if args.palavra.isdigit() and args.max_players is None:
                     args.max_players = int(args.palavra)
                     args.palavra = None
                 else:
@@ -109,7 +110,7 @@ def interpretar_comando(comando):
         #Não digitou --random
         else:
             #Não é permitido uma argumento sem palavra e --random
-            if args.palavra == None:
+            if args.palavra is None:
                 raise ValueError("Informe uma palavra ou utilize --random")
             else:
                 if not 3<=len(args.palavra)<=20:
@@ -121,7 +122,7 @@ def interpretar_comando(comando):
                 if not re.fullmatch(r"[a-zA-Z]+", args.palavra):
                     raise ValueError("A palavra deve conter apenas letras de a até z")
         #Verificação da quantidade de jogadores permitidos 1<=max_players<=config['max_players']
-        if args.max_players != None:
+        if args.max_players is not None:
             if not 1<= args.max_players <= config['max_players']:
                 raise ValueError(f"O número de jogadores deve estar entre 1 e {config['max_players']}")
             
@@ -189,7 +190,7 @@ def executar_comando(args,game_host,config):
         #Se for --random
         if args['random']:
             #Pega uma palavra do arquivo word
-            with open('words.txt', 'r', encoding='utf-8') as arquivo:
+           with open("words.txt", encoding="utf-8") as arquivo:
                 conteudo = arquivo.read()
                 list_palavra = conteudo.split()
                 palavra = random.choice(list_palavra) #random choice para pegar uma palavra aleatoria

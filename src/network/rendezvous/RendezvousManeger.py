@@ -1,13 +1,21 @@
 import json
-from threading import Event, Thread
 from socket import AF_INET, SOCK_STREAM, gaierror, socket
+from threading import Event
 from typing import cast
+
 from src.config.settings import Settings
-from .types import  Peer, ResponseServer, ResponseRegisterOK, ResponseRegisterError,ResponseDiscoverOk, ResponseDiscoverError, ResponseUnregisterOk, ResponseUnregisterError
-from src.network.rendezvous.operacoes.register import REGISTER
-from src.network.rendezvous.operacoes.discover import DISCOVER,filtro_discover
-from src.network.rendezvous.operacoes.unregister import UNREGISTER
+from src.network.rendezvous.operacoes.discover import DISCOVER, filtro_discover
 from src.network.rendezvous.operacoes.refresh import iniciar_refresh
+from src.network.rendezvous.operacoes.register import REGISTER
+from src.network.rendezvous.operacoes.unregister import UNREGISTER
+
+from .types import (
+    Peer,
+    ResponseRegisterError,
+    ResponseRegisterOK,
+    ResponseServer,
+)
+
 
 class RendezvousManeger:
     def __init__(self,config):

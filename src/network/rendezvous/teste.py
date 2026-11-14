@@ -1,7 +1,9 @@
-from src.network.rendezvous.RendezvousManeger import RendezvousManeger
 import time
 from threading import Lock
+
 from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
+from src.network.rendezvous.RendezvousManeger import RendezvousManeger
+
 
 def main():
     config = {
