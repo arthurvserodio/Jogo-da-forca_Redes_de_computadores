@@ -3,7 +3,9 @@ name = "pyp2p-forca"
 version = "0.1.0"
 description = "Jogo da Forca P2P — Redes de Computadores"
 requires-python = ">=3.13,<3.14"
-dependencies = []
+dependencies = [
+    "pydantic>=2,<3",
+]
 
 [dependency-groups]
 dev = ["ruff", "mypy", "pre-commit"]

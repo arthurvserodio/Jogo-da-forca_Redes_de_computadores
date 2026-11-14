@@ -2,27 +2,33 @@ import json
 from socket import AF_INET, SOCK_STREAM, gaierror, socket
 from typing import cast
 
+from src.config.settings import Settings
+
 from .types import Config, Response
 
 
-def connectServer(mensagemOperacao: str, config: Config) -> Response | None:
-    # Nome do servidor rendezvous
-    serverName = config["rdv_host"]
-    # Conecta a porta 8080
-    serverPort = config["rdv_port"]
-    clientSocket = socket(AF_INET, SOCK_STREAM)  # Cria o socket cliente da conexão TCP
+def connectServer(mensagemOperacao: str, config: Config | Settings) -> Response | None:
+    # Nome e porta do servidor rendezvous
+    if isinstance(config, Settings):
+        server_name = str(config.rdv_host)
+        server_port = config.rdv_port
+    else:
+        server_name = config["rdv_host"]
+        server_port = config["rdv_port"]
+
+    client_socket = socket(AF_INET, SOCK_STREAM)  # Cria o socket cliente da conexão TCP
     try:
         # TimeOut para deixar a comunicação TCP eficaz
-        # Operações bloqueantes teram um tempo de espera de 5 seg- a operação não fica presa por um tempo indefinido
-        clientSocket.settimeout(5)
+        # Operações bloqueantes terão um tempo de espera de 5 seg - a operação não fica presa indefinidamente
+        client_socket.settimeout(5)
 
-        clientSocket.connect((serverName, serverPort))  # Conecta com o servidor Rendevouz
-        clientSocket.sendall(mensagemOperacao.encode("utf-8"))
-        resposta = clientSocket.recv(1024)  # Buffer de 1024 bytes
-        # JSON -> DICIONARIO
-        respostaJSON = json.loads(resposta.decode("utf-8"))
-        # Return da resposta
-        return cast(Response, respostaJSON)
+        client_socket.connect((server_name, server_port))  # Conecta com o servidor Rendezvous
+        client_socket.sendall(mensagemOperacao.encode("utf-8"))
+        resposta = client_socket.recv(1024)  # Buffer de 1024 bytes
+        # JSON -> DICIONÁRIO
+        resposta_json = json.loads(resposta.decode("utf-8"))
+        # Retorno da resposta
+        return cast(Response, resposta_json)
     # Se passou de 5 seg para estabelecer a conexão
     except TimeoutError:
         print("Erro: Tempo de conexão excedeu")
@@ -49,4 +55,4 @@ def connectServer(mensagemOperacao: str, config: Config) -> Response | None:
         return None
     # Fecha a conexão
     finally:
-        clientSocket.close()
+        client_socket.close()
