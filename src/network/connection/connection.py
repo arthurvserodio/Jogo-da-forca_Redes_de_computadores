@@ -34,6 +34,11 @@ class PeerConnection:
             self._socket.sendall(payload + b"\n")
 
     def receive(self) -> Message | None:
+        """Recebe uma mensagem JSON delimitada por quebra de linha.
+
+        Apenas uma thread deve chamar este método para cada conexão, pois ela
+        consome e altera o buffer de bytes compartilhado pela conexão.
+        """
         while True:
             newline = self._buffer.find(b"\n")
 
