@@ -2,7 +2,9 @@ import threading
 from collections.abc import Callable
 
 
-def iniciar_refresh( refresh_registro: Callable[[int, threading.Event], None], ttl: int) -> tuple[threading.Event, threading.Thread]:
+def iniciar_refresh(
+    refresh_registro: Callable[[int, threading.Event], None], ttl: int
+) -> tuple[threading.Event, threading.Thread]:
     # Evento utilizado para interromper o refresh
     parar = threading.Event()
     # Cria uma thread para executar em paralelo

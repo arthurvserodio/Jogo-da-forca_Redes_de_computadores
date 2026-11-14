@@ -44,7 +44,7 @@ def main() -> None:
     if resposta is not None and resposta.get("status") == "OK":
         print("Registrado no Rendezvous")
     else:
-        print(f"Falha ao registrar no Rendezvous\nError: {resposta.get("message")}")
+        print(f"Falha ao registrar no Rendezvous\nError: {resposta.get('message')}")
 
     # Descobre os Peers e faz conexão
     # Descobrir os Peers e fazer conexão
@@ -57,11 +57,11 @@ def main() -> None:
     else:
         print("Falha ao descobrir peers")
 
-    #Criando elementos que são necessarios para a CLI
+    # Criando elementos que são necessarios para a CLI
     config = settings.model_dump()
-    #ID do peer
+    # ID do peer
     peer_id = f"{config['name']}@{config['namespace']}"
-    #Componentes do jogo
+    # Componentes do jogo
     game_host = GameHost(peer_id, config)
     game_player = GamePlayer(peer_id)
     lobby = Lobby(game_host, game_player)
@@ -87,8 +87,8 @@ def main() -> None:
                 print("Encerrando o programa...")
                 break
             # Executa os demais comandos
-            executar_comando(args,game_host,config,lobby)
-            #IMPELEMNTAR O ENVIO PELA REDE -> FUTURO
+            executar_comando(args, game_host, config, lobby)
+            # IMPELEMNTAR O ENVIO PELA REDE -> FUTURO
 
         except ValueError as erro:
             print(f"Comando inválido: {erro}")

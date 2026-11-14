@@ -12,23 +12,25 @@ def main():
         "namespace": "CIC",
         "name": "alice",
         "listen_port": 8081,
-        "register_ttl": 7200
+        "register_ttl": 7200,
     }
 
     manager = RendezvousManeger(config)
 
     # Simula respostas do servidor sem usar a rede
-    respostas = iter([
-        {"status": "OK", "ttl": 7200, "ip": "127.0.0.1", "port": 8081},
-        {
-            "status": "OK",
-            "peers": [
-                {"name": "alice", "namespace": "CIC"},
-                {"name": "bob", "namespace": "CIC"}
-            ]
-        },
-        {"status": "OK"}
-    ])
+    respostas = iter(
+        [
+            {"status": "OK", "ttl": 7200, "ip": "127.0.0.1", "port": 8081},
+            {
+                "status": "OK",
+                "peers": [
+                    {"name": "alice", "namespace": "CIC"},
+                    {"name": "bob", "namespace": "CIC"},
+                ],
+            },
+            {"status": "OK"},
+        ]
+    )
 
     manager.connectServer = lambda mensagem: next(respostas)
 
@@ -57,17 +59,13 @@ def main():
 
     # TESTE 4 - REGISTER com erro
     manager.registrado = False
-    manager.connectServer = lambda mensagem: {
-        "status": "ERROR",
-        "message": "Registro recusado"
-    }
+    manager.connectServer = lambda mensagem: {"status": "ERROR", "message": "Registro recusado"}
 
     resposta = manager.registrar()
 
     assert resposta["status"] == "ERROR"
     assert manager.registrado is False
     print("Teste 4: REGISTER com erro OK")
-
 
     # TESTE 5 - Falha de conexão
     manager.connectServer = lambda mensagem: None
@@ -78,14 +76,10 @@ def main():
     assert manager.registrado is False
     print("Teste 5: Falha de conexão OK")
 
-
     # TESTE 6 - DISCOVER com erro
     manager.peers = [{"name": "bob", "namespace": "CIC"}]
 
-    manager.connectServer = lambda mensagem: {
-        "status": "ERROR",
-        "message": "Servidor indisponível"
-    }
+    manager.connectServer = lambda mensagem: {"status": "ERROR", "message": "Servidor indisponível"}
 
     resposta = manager.descobrir_peers()
 
@@ -95,7 +89,6 @@ def main():
     assert manager.peers == [{"name": "bob", "namespace": "CIC"}]
 
     print("Teste 6: DISCOVER com erro OK")
-
 
     # TESTE 7 - UNREGISTER com falha
     manager.registrado = True
@@ -119,12 +112,7 @@ def main():
         with lock:
             contador[0] += 1
 
-        return {
-            "status": "OK",
-            "ttl": 1,
-            "ip": "127.0.0.1",
-            "port": 8081
-        }
+        return {"status": "OK", "ttl": 1, "ip": "127.0.0.1", "port": 8081}
 
     manager_refresh.connectServer = servidor_simulado
 
@@ -144,7 +132,6 @@ def main():
     assert total >= 2
     print("Teste 8: Refresh automático OK")
 
-
     # TESTE 9 - Impedir threads duplicadas
     thread_original = manager_refresh.thread_refresh
 
@@ -152,7 +139,6 @@ def main():
 
     assert manager_refresh.thread_refresh is thread_original
     print("Teste 9: Sem threads duplicadas OK")
-
 
     # TESTE 10 - Encerrar refresh
     manager_refresh.termina_refresh()
@@ -171,6 +157,7 @@ def main():
 
     assert total_antes == total_depois
     print("Teste 10: Encerramento do refresh OK")
+
 
 def teste_rendezvous_real():
     config = carregaConfig()
