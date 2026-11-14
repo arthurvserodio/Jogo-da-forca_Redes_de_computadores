@@ -1,10 +1,10 @@
 from .palavra import normalizando_word, valida_word
 #Verifica se o palpite que coloquei pode
-def validade_palpite(string, letras_usadas):
+def validade_palpite(string, letras_usadas, tipo):
     #Normaliza o digitado
     string = normalizando_word(string)
     #Se o tamanho da string for 1, a gente confere o comportamento de letra
-    if len(string) == 1:
+    if tipo == 'letter':
         #A letra tem que estar entre a até z, se não estiver, não é válido
         if not 'a' <= string <= 'z':
             return 'invalid_letter'
@@ -12,7 +12,7 @@ def validade_palpite(string, letras_usadas):
         if string in letras_usadas:
             return 'letter_already_used'
     #Tamanho > 1, comportamento de palavra
-    else:
+    elif tipo == 'word':
         #Verifica se a palavra é valida
         if not valida_word(string):
             return 'invalid_word'

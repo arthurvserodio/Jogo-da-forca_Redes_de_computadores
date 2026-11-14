@@ -6,7 +6,7 @@ from src.network.rendezvous.funcionalidades.funcoes import descobrir_peers
 from src.interface.cli import mostrar_Game
 from src.game.fsm.MaqEstadosJogo import MaqEstadosJogo
 
-def executar_comando(args,game_host,config):
+def executar_comando(args,game_host,config,lobby=None):
     comando = args['comando']
     #COMANDO DO HOST
     #Executar o /create
@@ -21,9 +21,11 @@ def executar_comando(args,game_host,config):
         else:
             palavra = args['palavra']
 
-        sucesso = game_host.criar_jogo(palavra,config['lives'])
+         # Obtém a quantidade máxima de jogadores
+        max_players = args['max_players']
+        sucesso = game_host.criar_jogo(palavra,config['lives'],max_players)
         if sucesso:
-            print(f"Partida criada! ID: {game_host.game_id} palavra: {palavra}")
+            print(f"Partida criada! ID: {game_host.game_id} palavra: {palavra} máximo de jogadores: {game_host.max_players}")
         else:
             print("Não foi possível criar a partida.")
     #Executar o /start
@@ -44,32 +46,66 @@ def executar_comando(args,game_host,config):
     #COMANDO DO LOOBY
     #Executar o /games
     elif comando == '/games': 
-        print("Solicitando lista de partidas")
-        #Conectar com o LOBBY
+        #Se não existir nada, não pode fazer nada
+        if lobby is None:
+            return None
+        #Solicita ao lobby a criação da mensagem GAME_LIST
+        mensagem = lobby.gerar_mensagem_GAMELIST()
+        mostrar_Game("Consultando partidas disponíveis...")
+        # Devolve a mensagem para a camada de comunicação
+        return mensagem
 
     #Executar o /join
     elif comando == '/join':
+        #Se não existir nada, não pode fazer nada
+        if lobby is None:
+            return None
         host_id = args["host_peer_id"]
-        print(f"Solicitando entrada na partida de {host_id}")
-        #Conectar com o looby
+        #Busca partida hospedada por esse host
+        partida = lobby.partidas_encontradas.get(host_id)
+        #Se a partida não foi encontrada para esse host ou ela não está em OPEN, não tem como fazer o join
+        if partida is None or partida['status'] != 'OPEN':
+            mostrar_Game(f"Nenhuma partida aberta encontrada para {host_id}")
+            return None
+
+        # Gera a solicitação JOIN
+        mensagem = lobby.mensagemJOIN(partida["game_id"])
+        mostrar_Game(f"Solicitando entrada na partida de {host_id}")
+        return mensagem
+
 
     #Executar o /leave
     elif comando == '/leave':
-        print("Solicitando a saída da partida")
-        #Conectar com o looby
+        #Se não existir nada, não pode fazer nada
+        if lobby is None:
+            return None
+        #Gera a mensagem LEAVE
+        mensagem = lobby.mensagemLEAVE()
+        if mensagem is None:
+            mostrar_Game("Você não está participando de nenhuma partida.")
+            return None
+        mostrar_Game("Solicitando a saída da partida...")
+        return mensagem
 
     #COMANDO DO JOGADOR
-    #Executar o /guess
-    elif comando == "/guess":
-        letra = args['letra']
-        print(f"Enviando palpite de letra: {letra}")
-        # Futuramente: encaminhar palpite ao GamePlayer
+    #Executar o /guess ou /word
+    elif comando == "/guess" or comando == "/word":
+        if lobby is None:
+            mostrar_Game("Lobby não disponível.")
+            return None
+        #Pega o palpite 
+        if comando == '/guess':
+            palpite = args['letra']
+        else:
+            palpite = args['palavra']
+        mensagem = lobby.game_player.gerar_guess(palpite)
+        if mensagem is None:
+            mostrar_Game(
+            "Não foi possível enviar o palpite. "
+            "Verifique se você está jogando e se é sua vez.")
 
-    #Executar o /word
-    elif comando == "/word":
-        palavra = args["palavra"]
-        print(f"Enviando palpite de palavra: {palavra}")
-        # Futuramente: encaminhar palpite ao GamePlayer
+        return mensagem
+
 
     #Executar o /status
     elif comando == "/status":
@@ -86,6 +122,21 @@ def executar_comando(args,game_host,config):
             mostra_status_jogo(status,config)
         else:
             mostrar_Game(f"Estado atual: {status['estado']}")
+
+        # Verifica se o peer está participando de uma partida
+        if lobby is not None:
+            jogador = lobby.game_player
+
+            if jogador.estado.name == "JOIN":
+                mostrar_Game(f"Game ID: {jogador.game_id}")
+                mostrar_Game(f"Host: {jogador.host_id}")
+                mostrar_Game(f"Estado atual: {jogador.estado.name}")
+                # Se já começou, exibe as informações do jogo
+            if jogador.estado.name == "PLAYING":
+                mostra_status_jogo(status,config)
+                return
+
+        mostrar_Game("Você não está em nenhuma partida.")
 
     # COMANDOS DE REDE
     #Executando /peers

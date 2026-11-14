@@ -12,6 +12,7 @@ class Forca:
         self.vidas = vidas #Quantidade de vidas
         self.letras_usadas = set() #Letras já usadas
         self.letras_certas = set() #Letras que os jogadores acertaram
+        self.letras_erradas = [] #Guarda as letras erradas
         self.terminou = False #Indica se o jogo terminou ou não
         self.vitoria = False #Indica se os jogadores venceram
 
@@ -26,7 +27,7 @@ class Forca:
         #Normaliza a letra
         letra = normalizando_word(letra)
         #Valida a tentativa
-        erro = validade_palpite(letra,self.letras_usadas)
+        erro = validade_palpite(letra,self.letras_usadas, 'letter')
         #Se deu errado, retorna falso
         if erro is not None:
             return {
@@ -48,6 +49,7 @@ class Forca:
         else:
             self.vidas-=1
             self.resultado_jogo()
+            self.letras_erradas.append(letra) # Guarda a letra que tentou e não ta na palavra
             return {
                 "aceito": True,
                 "correto": False,
@@ -65,7 +67,7 @@ class Forca:
         #Normaliza a letra
         palavra = normalizando_word(palavra)
         #Valida a tentativa
-        erro = validade_palpite(palavra,self.letras_usadas)
+        erro = validade_palpite(palavra,self.letras_usadas,'word')
         #Se deu errado, retorna falso
         if erro is not None:
             return {
@@ -78,9 +80,9 @@ class Forca:
             self.letras_certas.update(palavra) #Coloca todas as letras da palavra certa no set
             self.resultado_jogo()
             return {
-            "aceito": True,
-            "correto": True,
-            "pontuacao": pontos,
+                "aceito": True,
+                "correto": True,
+                "pontuacao": pontos,
             }
         #Se não for a palavra certa, então perde 1 de vida
         else:
