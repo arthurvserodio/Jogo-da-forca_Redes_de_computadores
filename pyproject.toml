@@ -5,10 +5,16 @@ description = "Jogo da Forca P2P — Redes de Computadores"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "pydantic>=2,<3",
+    "unidecode>=1.4.0",
 ]
 
 [dependency-groups]
-dev = ["ruff", "mypy", "pre-commit"]
+dev = [
+    "ruff",
+    "mypy",
+    "pre-commit",
+    "pytest>=9.2.0",
+]
 
 [tool.uv]
 package = false
