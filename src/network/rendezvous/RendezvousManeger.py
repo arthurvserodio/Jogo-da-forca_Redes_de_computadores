@@ -1,6 +1,6 @@
 import json
 from socket import AF_INET, SOCK_STREAM, gaierror, socket
-from threading import Event
+from threading import Event, Thread
 from typing import cast
 
 from src.config.settings import Settings
@@ -10,6 +10,7 @@ from src.network.rendezvous.operacoes.register import REGISTER
 from src.network.rendezvous.operacoes.unregister import UNREGISTER
 
 from .types import (
+    Config,
     Peer,
     ResponseRegisterError,
     ResponseRegisterOK,
@@ -18,12 +19,17 @@ from .types import (
 
 
 class RendezvousManeger:
-    def __init__(self, config):
-        self.config = config  # Pega informações do arquivo de configurações
+    def __init__(self, config: Config | Settings) -> None:
+        # Pega informações do arquivo de configurações
+        if isinstance(config, Settings):
+            self.config: Config = cast(Config, config.model_dump())
+        else:
+            self.config = config
         self.registrado = False  # Guarda se o peer está registrado no rendevouz
-        self.peers = [Peer]  # Guarda os peers que estão registrados -> pelo DISCOVER
-        self.parar_refresh = None  # Usado para parar nossa thread de renovação, pois o usuario que deu /quit não precisa ser renovado
-        self.thread_refresh = None  # Guarda a thread de renovação
+        self.peers: list[Peer] = []  # Guarda os peers que estão registrados -> pelo DISCOVER
+        # Usado para parar nossa thread de renovação, pois o usuario que deu /quit não precisa ser renovado
+        self.parar_refresh: Event | None = None
+        self.thread_refresh: Thread | None = None  # Guarda a thread de renovação
 
     # Método para conectar ao Rendezvous
     def connectServer(self, mensagemOperacao: str) -> ResponseServer | None:
@@ -109,7 +115,10 @@ class RendezvousManeger:
         respostaServer = self.connectServer(mensagem)
         # Se a resposta existir e tiver status OK, pegamos a lista de peers
         if respostaServer is not None and respostaServer["status"] == "OK":
-            self.peers = filtro_discover(respostaServer["peers"], self.config)
+            peers = respostaServer.get("peers")
+
+            if isinstance(peers, list):
+                self.peers = filtro_discover(peers, self.config)
         # Retorna a mensagem dada pelo servidor
         return respostaServer
 
@@ -135,10 +144,12 @@ class RendezvousManeger:
             # Envia novamente uma operação REGISTER
             respostaRegister = self.registrar()
             if respostaRegister is not None and respostaRegister["status"] == "OK":
-                # Renovação do intervalo
-                intervalo = respostaRegister["ttl"] * 0.8
+                novo_ttl = respostaRegister.get("ttl")
+                if isinstance(novo_ttl, int) and novo_ttl > 0:
+                    intervalo = novo_ttl * 0.8
+                else:
+                    intervalo = 10
             else:
-                # Tente novamente daqui 10 seg
                 intervalo = 10
 
     # FUNÇÃO DE REFRESH
@@ -155,9 +166,7 @@ class RendezvousManeger:
         # Se já temos uma thread, não precisa criar outra
         if self.thread_refresh is not None and self.thread_refresh.is_alive():
             return None
-        self.parar_refresh, self.thread_refresh = iniciar_refresh(
-            self.refresh_registro, respostaRegister["ttl"]
-        )
+        self.parar_refresh, self.thread_refresh = iniciar_refresh(self.refresh_registro, ttl)
 
     # FUNÇÃO PARA PARAR O REFRESH
     def termina_refresh(self) -> None:

@@ -1,25 +1,25 @@
 import argparse
-import random
 import re
 import shlex
+from typing import Any, NoReturn
 
-from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
+from src.config.carrega_config_jogo import carregar_config_jogo
 
 
 class ParserCLI(argparse.ArgumentParser):
     # Evita que o argparse feche o programa ao encontrar um erro, e lança uma exceção ValueError
-    def error(self, message):
+    def error(self, message: str) -> NoReturn:
         raise ValueError(message)
 
     # Evita que o argparse feche em comandos como --help/--version, e lança uma exceção ValueError
-    def exit(self, status=0, message=None):
+    def exit(self, status: int = 0, message: str | None = None) -> NoReturn:
         if message:
             self._print_message(message)
         raise ValueError("Comando encerrado pelo parser")
 
 
 # Cria as regras da CLI
-def criar_parser():
+def criar_parser() -> ParserCLI:
     parser = ParserCLI(prog="PyP2P-Forca", add_help=False)
     # Cria os subcomandos, criando diferentes funções independentes
     comandos = parser.add_subparsers(dest="comando", required=True, parser_class=ParserCLI)
@@ -83,12 +83,12 @@ def criar_parser():
     return parser  # Lista de regras da minha CLI
 
 
-config = carregaConfig()
+config = carregar_config_jogo()
 # Cria meu conj. de regras
 parser = criar_parser()
 
 
-def interpretar_comando(comando):
+def interpretar_comando(comando: str) -> dict[str, Any] | None:
     # Separa o que foi digitado
     partes = shlex.split(comando)
     # Rejeita entradas vazias(lista vazia)
@@ -158,7 +158,7 @@ def interpretar_comando(comando):
 
 
 # Comando /help
-def mostrar_ajuda():
+def mostrar_ajuda() -> None:
     print("""
 ========== PyP2P-FORCA ==========
 
@@ -191,41 +191,6 @@ SISTEMA:
 """)
 
 
-def executar_comando(args, game_host, config):
-    comando = args["comando"]
-    # Executar o /create
-    if comando == "/create":
-        # Se for --random
-        if args["random"]:
-            # Pega uma palavra do arquivo word
-            with open("words.txt", encoding="utf-8") as arquivo:
-                conteudo = arquivo.read()
-                list_palavra = conteudo.split()
-                palavra = random.choice(
-                    list_palavra
-                )  # random choice para pegar uma palavra aleatoria
-        else:
-            palavra = args["palavra"]
-
-        sucesso = game_host.criar_jogo(palavra, config["lives"])
-        if sucesso:
-            print(f"Partida criada! ID: {game_host.game_id} palavra: {palavra}")
-        else:
-            print("Não foi possível criar a partida.")
-    elif comando == "/start":
-        sucesso = game_host.iniciar_jogo()
-        if sucesso:
-            print("Partida iniciada!")
-        else:
-            print("Não foi possível iniciar a partida.")
-    elif comando == "/cancel":
-        sucesso = game_host.cancelar_jogo()
-        if sucesso:
-            print("Partida cancelada!")
-        else:
-            print("Não foi possível cancelar a partida.")
-
-
 # Mostra a TAG de game
-def mostrar_Game(mensagem):
+def mostrar_Game(mensagem: str) -> None:
     print(f"[GAME] {mensagem}")

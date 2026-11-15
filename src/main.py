@@ -2,6 +2,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from src.config.carrega_config_jogo import carregar_config_jogo
 from src.config.loader import ConfigLoader
 from src.game.forca.gameHost import GameHost
 from src.game.forca.gamePlayer import GamePlayer
@@ -38,13 +39,14 @@ def main() -> None:
     # Criar o ConnectionManager
 
     # Registra no Rendezvous
-    config = settings.model_dump()
+    config = carregar_config_jogo()
     rendezvous = RendezvousManeger(config)
     resposta = rendezvous.registrar()
     if resposta is not None and resposta.get("status") == "OK":
         print("Registrado no Rendezvous")
     else:
-        print(f"Falha ao registrar no Rendezvous\nError: {resposta.get('message')}")
+        erro = resposta.get("message") if resposta is not None else "Sem resposta do servidor"
+        print(f"Falha ao registrar no Rendezvous\nError: {erro}")
 
     # Descobre os Peers e faz conexão
     # Descobrir os Peers e fazer conexão
@@ -58,7 +60,6 @@ def main() -> None:
         print("Falha ao descobrir peers")
 
     # Criando elementos que são necessarios para a CLI
-    config = settings.model_dump()
     # ID do peer
     peer_id = f"{config['name']}@{config['namespace']}"
     # Componentes do jogo
@@ -87,7 +88,7 @@ def main() -> None:
                 print("Encerrando o programa...")
                 break
             # Executa os demais comandos
-            executar_comando(args, game_host, config, lobby)
+            executar_comando(args, game_host, config, lobby, rendezvous)
             # IMPELEMNTAR O ENVIO PELA REDE -> FUTURO
 
         except ValueError as erro:

@@ -2,7 +2,11 @@ from .palavra import normalizando_word, valida_word
 
 
 # Verifica se o palpite que coloquei pode
-def validade_palpite(string, letras_usadas, tipo):
+def validade_palpite(
+    string: str,
+    letras_usadas: set[str],
+    tipo: str,
+) -> str | None:
     # Normaliza o digitado
     string = normalizando_word(string)
     # Se o tamanho da string for 1, a gente confere o comportamento de letra

@@ -3,7 +3,7 @@ from .palavra import normalizando_word, valida_word
 
 
 class Forca:
-    def __init__(self, palavra, vidas):
+    def __init__(self, palavra: str, vidas: int) -> None:
         # Valida palavra secreta
         if not valida_word(normalizando_word(palavra)):
             raise ValueError("Palavra secreta inválida")
@@ -11,14 +11,14 @@ class Forca:
         # Guarda a palavra normalizada
         self.palavra = normalizando_word(palavra)  # Palavra secreta normalizada
         self.vidas = vidas  # Quantidade de vidas
-        self.letras_usadas = set()  # Letras já usadas
-        self.letras_certas = set()  # Letras que os jogadores acertaram
-        self.letras_erradas = []  # Guarda as letras erradas
+        self.letras_usadas: set[str] = set()  # Letras já usadas
+        self.letras_certas: set[str] = set()  # Letras que os jogadores acertaram
+        self.letras_erradas: list[str] = []  # Guarda as letras erradas
         self.terminou = False  # Indica se o jogo terminou ou não
         self.vitoria = False  # Indica se os jogadores venceram
 
     # GUESS LETRA
-    def tentar_letra(self, letra):
+    def tentar_letra(self, letra: str) -> dict[str, bool | str | int]:
         # Se o jogo já terminou, não pode mais jogar
         if self.terminou:
             return {
@@ -58,7 +58,7 @@ class Forca:
             }
 
     # GUESS PALAVRA
-    def tentar_palavra(self, palavra):
+    def tentar_palavra(self, palavra: str) -> dict[str, bool | str | int]:
         # Se o jogo já terminou, não pode mais jogar
         if self.terminou:
             return {
@@ -96,7 +96,7 @@ class Forca:
             }
 
     # Verificar o resultado do jogo
-    def resultado_jogo(self):
+    def resultado_jogo(self) -> bool:
         # Verifica se as vidas acabaram
         if self.vidas <= 0:
             self.terminou = True  # O jogo termina
@@ -108,7 +108,7 @@ class Forca:
         return self.terminou
 
     # Verifica quantos pontos a jogada de palavra fez
-    def pontuacao_gerada_palavra(self):
+    def pontuacao_gerada_palavra(self) -> int:
         pontos = 0
         # Cada letra revelada pela palavra vale 1 ponto
         for letra in self.palavra:
@@ -117,7 +117,7 @@ class Forca:
         return pontos
 
     # Verifica quantos pontos a jogada de letra fez
-    def pontuacao_gerada_letra(self, letra_palpite):
+    def pontuacao_gerada_letra(self, letra_palpite: str) -> int:
         pontos = 0
         # Cada letra revelada pela letra vale 1 ponto
         for letra in self.palavra:

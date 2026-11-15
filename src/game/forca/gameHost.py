@@ -3,21 +3,24 @@ import secrets
 import time
 from copy import deepcopy
 
+from src.config.types import ConfigJogo
 from src.game.forca.forca import Forca
 from src.game.forca.palavra import mask
 from src.game.fsm.MaqEstadosJogo import MaqEstadosJogo
 
 
 class GameHost:
-    def __init__(self, host_id, config):
+    def __init__(self, host_id: str, config: ConfigJogo) -> None:
         self.host_id = host_id  # Id do host, que é o mesmo id do jogador que criou o jogo
-        self.game_id = None  # Gera um id aleatório para o jogo
+        self.game_id: str | None = None  # Gera um id aleatório para o jogo
 
         self.game_state = MaqEstadosJogo.IDLE  # Informa o estado do jogo, que começa como IDLE
 
-        self.players = []  # Lista de jogadores no jogo por um id[nome@namespace]
-        self.jogadores_desconectados = set()  # Jogadores que cairam do jogo
-        self.pontuacao = {}  # dicionário de pontuação dos jogadores, onde a chave é o id do jogador e o valor é a pontuação
+        self.players: list[str] = []  # Lista de jogadores no jogo por um id[nome@namespace]
+        self.jogadores_desconectados: set[str] = set()  # Jogadores que cairam do jogo
+        self.pontuacao: dict[
+            str, int
+        ] = {}  # dicionário de pontuação dos jogadores, onde a chave é o id do jogador e o valor é a pontuação
 
         self.max_playersConfig = config[
             "max_players"
@@ -27,23 +30,25 @@ class GameHost:
             "turn_timeout"
         ]  # Obtém o tempo limite de turno do arquivo de configuração
 
-        self.forca = None  # Instância do jogo da forca, que será criada quando o jogo começar
-        self.turno_atual = (
+        self.forca: Forca | None = (
+            None  # Instância do jogo da forca, que será criada quando o jogo começar
+        )
+        self.turno_atual: str | None = (
             None  # Id do jogador que está no turno atual, que será definido quando o jogo começar
         )
         self.seq = 0  # Número de sequência do jogo, que será incrementado a cada jogada
 
-        self.resultado = None  # Guarda o resultado do jogo(WON,LOST ou ABORTED)
-        self.fim_em = None  # Guarda quando o jogo terminou
-        self.inicio_turno = None  # Guarda quando começou o turno
+        self.resultado: str | None = None  # Guarda o resultado do jogo(WON,LOST ou ABORTED)
+        self.fim_em: float | None = None  # Guarda quando o jogo terminou
+        self.inicio_turno: float | None = None  # Guarda quando começou o turno
 
-        self.ultima_jogada = None  # Guarda a última jogada já feita
+        self.ultima_jogada: dict[str, object] | None = None  # Guarda a última jogada já feita
 
-        self.vencedor = None  # Guarda a pessoa que fez a jogada da vitória
-        self.motivo_fim = None  # Qual foi o motivo do fim quando abortou
-        self.ultimo_estado = None  # Guarda o ultimo estado gerado
+        self.vencedor: str | None = None  # Guarda a pessoa que fez a jogada da vitória
+        self.motivo_fim: str | None = None  # Qual foi o motivo do fim quando abortou
+        self.ultimo_estado: dict[str, object] | None = None  # Guarda o ultimo estado gerado
 
-    def criar_jogo(self, palavra, vidas, max_players=None):
+    def criar_jogo(self, palavra: str, vidas: int, max_players: int | None = None) -> bool:
         # Verifica se uma partida antiga já pode ser limpa
         self.limpar_jogo()
         # Só cria um jogo se o estado atual for IDLE
@@ -69,7 +74,7 @@ class GameHost:
         )  # Muda o estado do jogo para OPEN, permitindo que jogadores se juntem
         return True
 
-    def cancelar_jogo(self):
+    def cancelar_jogo(self) -> bool:
         # Só tem como cancelar o jogo que estiver no estado OPEN ou RUNNING
         if self.game_state != MaqEstadosJogo.OPEN and self.game_state != MaqEstadosJogo.RUNNING:
             return False
@@ -79,7 +84,7 @@ class GameHost:
         self.game_state = MaqEstadosJogo.FINISHED  # Estado do jogo vai para finalizado
         return True
 
-    def adicionar_jogador(self, player_id):
+    def adicionar_jogador(self, player_id: str) -> str:
         # Verifica se o jogador já entrou na partida
         if player_id in self.players:
             return "already_joined"
@@ -110,7 +115,7 @@ class GameHost:
         # Se não ta no estado de OPEN ou RUNNING, então o jogo não está aberto
         return "game_not_open"
 
-    def remover_jogador(self, player_id, motivo="leave"):
+    def remover_jogador(self, player_id: str, motivo: str = "leave") -> str:
         # Removendo o jogador da lista de jogadores e do dicionário de pontuação
         if player_id not in self.players:
             return "player_not_found"
@@ -153,7 +158,7 @@ class GameHost:
 
         return "Player_removed_successfully"
 
-    def iniciar_jogo(self):
+    def iniciar_jogo(self) -> bool:
         # Só inicia se tiver no estado OPEN e tiver pelo menos 1 jogador
         if self.game_state != MaqEstadosJogo.OPEN or len(self.players) == 0:
             return False
@@ -166,7 +171,7 @@ class GameHost:
         return True
 
     # Obter o status do jogo
-    def obter_status(self):
+    def obter_status(self) -> dict[str, object] | None:
         # Verifica se existe um jogo
         if self.game_id is None:
             return None
@@ -180,6 +185,8 @@ class GameHost:
                 "max_players": self.max_players,
             }
         elif self.game_state == MaqEstadosJogo.RUNNING:
+            if self.forca is None:
+                return None
             return {
                 "game_id": self.game_id,
                 "host_id": self.host_id,
@@ -193,7 +200,7 @@ class GameHost:
         return {"game_id": self.game_id, "estado": self.game_state.name}
 
     # Finaliza o jogo
-    def finalizar_jogo(self, resultado):
+    def finalizar_jogo(self, resultado: str) -> bool:
         # Só é necessario finalizar o jogo se ele estiver em andamento
         if self.game_state != MaqEstadosJogo.RUNNING:
             return False
@@ -210,11 +217,16 @@ class GameHost:
         return True
 
     # Próximo jogador a jogar
-    def proximo_turno(self):
+    def proximo_turno(self) -> None:
         # Se não tiver jogador na lista, não tem próximo
         if not self.players:
             self.turno_atual = None
             return
+        if self.turno_atual not in self.players:
+            self.turno_atual = self.players[0]
+            self.inicio_turno = time.monotonic()
+            return
+
         # Pega o indice do jogador atual:
         indice_atual = self.players.index(self.turno_atual)
         # Se o jogador atual for o último da lista, volta ao inicio
@@ -228,9 +240,11 @@ class GameHost:
         self.inicio_turno = time.monotonic()
 
     # Função para limpar meu jogo e voltar ao estado inicial
-    def limpar_jogo(self):
+    def limpar_jogo(self) -> bool:
         # Se o jogo não estiver no estado FINISHED, então não faz nada
         if self.game_state != MaqEstadosJogo.FINISHED:
+            return False
+        if self.fim_em is None:
             return False
         # Se não tiver passado 60 seg, também não faz nada
         if time.monotonic() - self.fim_em < 60:
@@ -258,9 +272,14 @@ class GameHost:
         return True
 
     # Processa a jogada feita pelo jogador
-    def processar_jogada(self, player_id, tipo, palpite):
+    def processar_jogada(
+        self, player_id: str, tipo: str, palpite: str
+    ) -> dict[str, bool | str | int]:
         # Se o jogo não ta rodando então não pode dá um palpite
         if self.game_state != MaqEstadosJogo.RUNNING:
+            return {"aceito": False, "erro": "game_not_running"}
+        # Verifica se a forca foi criada
+        if self.forca is None:
             return {"aceito": False, "erro": "game_not_running"}
         # Verifica se aquele jogador está na partida
         if player_id not in self.players:
@@ -294,7 +313,10 @@ class GameHost:
 
         # Atribuindo pontuação e vendo se terminou
         # Somando a pontuação
-        self.pontuacao[player_id] += resultado["pontuacao"]
+        pontos = resultado["pontuacao"]
+        if not isinstance(pontos, int):
+            return {"aceito": False, "erro": "invalid_score"}
+        self.pontuacao[player_id] += pontos
         # Se o jogo terminou, a gente verifica se houve vitoria ou derrota
         if self.forca.terminou:
             if self.forca.vitoria:
@@ -311,7 +333,7 @@ class GameHost:
             self.gerar_estado()
         return resultado
 
-    def verifica_timeout(self):
+    def verifica_timeout(self) -> str | bool:
         # Verifica se o jogo está em andamento
         if self.game_state != MaqEstadosJogo.RUNNING:
             return False
@@ -334,15 +356,17 @@ class GameHost:
         return jogador_timeout
 
     # Gerar o STATE
-    def gerar_estado(self):
+    def gerar_estado(self) -> dict[str, object] | None:
         # Se o jogo não estiver em andamento, não precisa de STATE
         if self.game_state != MaqEstadosJogo.RUNNING:
+            return None
+        if self.forca is None:
             return None
         # Incrementa o num de sequencia
         self.seq += 1
         # Faz a mascara da palavra
         palavra_mask = mask(self.forca.palavra, self.forca.letras_certas)
-        estado = {
+        estado: dict[str, object] = {
             "game_id": self.game_id,
             "seq": self.seq,
             "masked": palavra_mask.replace(" ", ""),
@@ -356,16 +380,18 @@ class GameHost:
         return self.ultimo_estado
 
     # Gerar pega o ultimo estado sem incrementar o STATE
-    def obter_UltimoEstado(self):
+    def obter_UltimoEstado(self) -> dict[str, object] | None:
         # Se não existe ultimo estado, então retorna nada
         if self.ultimo_estado is None:
             return None
         return deepcopy(self.ultimo_estado)
 
     # Gera GAME_START
-    def gerar_gameStart(self):
+    def gerar_gameStart(self) -> dict[str, object] | None:
         # Só gera o estado se o jogo estiver em andamento
         if self.game_state != MaqEstadosJogo.RUNNING:
+            return None
+        if self.forca is None:
             return None
         # palavra já normalizada
         palavra = self.forca.palavra
@@ -381,9 +407,11 @@ class GameHost:
         }
 
     # Gera GAME_OVER, de RUNNING -> FINISHED
-    def gerar_gameOver(self):
+    def gerar_gameOver(self) -> dict[str, object] | None:
         # Só gera o estado se o jogo estiver em andamento
         if self.game_state != MaqEstadosJogo.FINISHED:
+            return None
+        if self.forca is None:
             return None
         return {
             "game_id": self.game_id,
@@ -399,7 +427,10 @@ class GameHost:
         }
 
     # Gera GUESS
-    def gerar_guessResult(self, resultado, tipo, palpite):
+    def gerar_guessResult(
+        self,
+        resultado: dict[str, bool | str | int],
+    ) -> dict[str, object]:
         # Se a jogada foi recusada então:
         if not resultado["aceito"]:
             return {"game_id": self.game_id, "accepted": False, "reason": resultado["erro"]}

@@ -1,4 +1,4 @@
-def desenha_forca(erros):
+def desenha_forca(erros: int) -> str:
     desenhos = [
         """
         +----+

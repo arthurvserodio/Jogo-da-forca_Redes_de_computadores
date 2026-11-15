@@ -1,7 +1,7 @@
 from .forca import Forca
 
 
-def testar_forca():
+def testar_forca() -> None:
     jogo = Forca("banana", 6)
 
     # TESTE 1 — Acertar a letra "a"

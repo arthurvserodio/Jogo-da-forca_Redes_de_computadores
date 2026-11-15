@@ -6,6 +6,7 @@ from ..operacoes.discover import DISCOVER, filtro_discover
 from ..operacoes.refresh import iniciar_refresh
 from ..operacoes.register import REGISTER
 from ..operacoes.unregister import UNREGISTER
+from ..RendezvousManeger import RendezvousManeger
 from ..types import Peer, Response
 
 
@@ -60,9 +61,10 @@ def desregistrar_peer() -> None:
 
 # FUNÇÃO DE REFRESH
 def refresh_peer(respostaRegister: Response) -> tuple[Event, Thread]:
-    # Carregando as configurações
+    # Usa a rotina de renovação já implementada no gerenciador.
     config = carregaConfig()
-    return iniciar_refresh(config, respostaRegister["ttl"])
+    manager = RendezvousManeger(config)
+    return iniciar_refresh(manager.refresh_registro, respostaRegister["ttl"])
 
 
 # FUNÇÃO PARA PARAR O REFRESH

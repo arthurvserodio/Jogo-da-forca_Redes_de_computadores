@@ -1,18 +1,23 @@
+from typing import Any
+
+
 class Lobby:
-    def __init__(self, game_host, game_player):
+    def __init__(self, game_host: Any, game_player: Any) -> None:
         self.game_host = game_host  # Guarda a partida que esse peer está hospedando
         self.game_player = game_player  # Guarda a partida que este peer está participando
-        self.partidas_encontradas = {}  # Guarda as partidas descobertas em outros peers
+        self.partidas_encontradas: dict[
+            str, dict[str, Any]
+        ] = {}  # Guarda as partidas descobertas em outros peers
 
     # Gera a mensagem a ser enviada aos outros peers solicitando o GAME LIST
-    def gerar_mensagem_GAMELIST(self):
+    def gerar_mensagem_GAMELIST(self) -> dict[str, Any]:
         # Limpa as partidas armazenadas encontradas, para não contecer uma mistura de partidas
         self.partidas_encontradas.clear()
         return {"type": "GAME_LIST"}
 
     # Resposta a ser enviada para a requisição GAME_LIST
-    def GameList_Ok(self):
-        jogos = []
+    def GameList_Ok(self) -> dict[str, Any]:
+        jogos: list[dict[str, Any]] = []
         # Verifica se uma partida está em FINISHED e se já passou seu periodo de retenção
         self.game_host.limpar_jogo()
         if self.game_host.game_id is not None:
@@ -31,7 +36,7 @@ class Lobby:
         return {"type": "GAME_LIST_OK", "games": jogos}
 
     # Recebe as informações recebidas do GAME_LIST_OK
-    def recebe_GAMELIST_Ok(self, mensagem):
+    def recebe_GAMELIST_Ok(self, mensagem: dict[str, Any]) -> bool:
         # Se o que foi recebido não é GAME_LIST, então nem olha
         if mensagem["type"] != "GAME_LIST_OK":
             return False
@@ -45,11 +50,11 @@ class Lobby:
         return True
 
     # Gera a mensagem de solicitação para entra em uma partida
-    def mensagemJOIN(self, game_id):
+    def mensagemJOIN(self, game_id: str) -> dict[str, Any]:
         return {"type": "JOIN", "game_id": game_id}
 
     # Aceita solicitação para entrar na partida
-    def processar_JOIN(self, mensagem):
+    def processar_JOIN(self, mensagem: dict[str, Any]) -> dict[str, Any]:
         game_id = mensagem["game_id"]
         player_id = mensagem["src"]
 
@@ -78,7 +83,7 @@ class Lobby:
             return {"type": "JOIN_ERR", "game_id": game_id, "reason": resultado}
 
     # Sua solicitação para entrar na partida foi aprovada
-    def recebe_JoinOk(self, mensagem):
+    def recebe_JoinOk(self, mensagem: dict[str, Any]) -> bool:
         # Se a mensagem não for do tipo JOIN_OK, Faz nada
         if mensagem["type"] != "JOIN_OK":
             return False
@@ -93,23 +98,23 @@ class Lobby:
                 return False
             return True
         # Entrada normal
-        return self.game_player.entrar_Partida(mensagem["game_id"], mensagem["src"])
+        return bool(self.game_player.entrar_Partida(mensagem["game_id"], mensagem["src"]))
 
     # Gera a mensagem de solicitação para sair em uma partida
-    def mensagemLEAVE(self):
+    def mensagemLEAVE(self) -> dict[str, Any] | None:
         # Se o jogador não estiver jogando uma partida(não tem game_id), então não sai de nada
         if self.game_player.game_id is None:
             return None
         return {"type": "LEAVE", "game_id": self.game_player.game_id}
 
-    def recebe_LeaveOK(self, mensagem):
+    def recebe_LeaveOK(self, mensagem: dict[str, Any]) -> bool:
         # Se a mensagem não for do tipo LEAVEOK ou o game_id não bater com o do game_player, não sai
         if mensagem["type"] != "LEAVE_OK" or mensagem["game_id"] != self.game_player.game_id:
             return False
         self.game_player.sair_jogo()
         return True
 
-    def processa_Leave(self, mensagem):
+    def processa_Leave(self, mensagem: dict[str, Any]) -> dict[str, Any] | None:
         # Se a mensagem não for LEAVE ou o game id do host não bate com o da mensagem, não faz nada
         if mensagem["type"] != "LEAVE" or mensagem["game_id"] != self.game_host.game_id:
             return None

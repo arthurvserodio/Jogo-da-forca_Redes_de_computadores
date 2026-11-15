@@ -1,11 +1,14 @@
 import time
 from threading import Lock
+from typing import cast
+from unittest.mock import patch
 
 from src.network.rendezvous.importConfig.carregaConfig import carregaConfig
 from src.network.rendezvous.RendezvousManeger import RendezvousManeger
+from src.network.rendezvous.types import Config
 
 
-def main():
+def main() -> None:
     config = {
         "rdv_host": "localhost",
         "rdv_port": 8080,
@@ -15,7 +18,7 @@ def main():
         "register_ttl": 7200,
     }
 
-    manager = RendezvousManeger(config)
+    manager = RendezvousManeger(cast(Config, config))
 
     # Simula respostas do servidor sem usar a rede
     respostas = iter(
@@ -32,11 +35,13 @@ def main():
         ]
     )
 
-    manager.connectServer = lambda mensagem: next(respostas)
+    mocker = patch.object(manager, "connectServer", side_effect=respostas)
+    mock_connect = mocker.start()
 
     # TESTE 1 - REGISTER
     resposta = manager.registrar()
 
+    assert resposta is not None
     assert resposta["status"] == "OK"
     assert manager.registrado is True
     print("Teste 1: REGISTER OK")
@@ -44,6 +49,7 @@ def main():
     # TESTE 2 - DISCOVER
     resposta = manager.descobrir_peers()
 
+    assert resposta is not None
     assert resposta["status"] == "OK"
     assert manager.peers == [{"name": "bob", "namespace": "CIC"}]
     print("Teste 2: DISCOVER OK")
@@ -51,6 +57,7 @@ def main():
     # TESTE 3 - UNREGISTER
     resposta = manager.desregistrar()
 
+    assert resposta is not None
     assert resposta["status"] == "OK"
     assert manager.registrado is False
     print("Teste 3: UNREGISTER OK")
@@ -59,16 +66,17 @@ def main():
 
     # TESTE 4 - REGISTER com erro
     manager.registrado = False
-    manager.connectServer = lambda mensagem: {"status": "ERROR", "message": "Registro recusado"}
+    mock_connect.side_effect = lambda mensagem: {"status": "ERROR", "message": "Registro recusado"}
 
     resposta = manager.registrar()
 
+    assert resposta is not None
     assert resposta["status"] == "ERROR"
     assert manager.registrado is False
     print("Teste 4: REGISTER com erro OK")
 
     # TESTE 5 - Falha de conexão
-    manager.connectServer = lambda mensagem: None
+    mock_connect.side_effect = lambda mensagem: None
 
     resposta = manager.registrar()
 
@@ -79,10 +87,14 @@ def main():
     # TESTE 6 - DISCOVER com erro
     manager.peers = [{"name": "bob", "namespace": "CIC"}]
 
-    manager.connectServer = lambda mensagem: {"status": "ERROR", "message": "Servidor indisponível"}
+    mock_connect.side_effect = lambda mensagem: {
+        "status": "ERROR",
+        "message": "Servidor indisponível",
+    }
 
     resposta = manager.descobrir_peers()
 
+    assert resposta is not None
     assert resposta["status"] == "ERROR"
 
     # O gerenciador mantém a última lista conhecida
@@ -92,7 +104,7 @@ def main():
 
     # TESTE 7 - UNREGISTER com falha
     manager.registrado = True
-    manager.connectServer = lambda mensagem: None
+    mock_connect.side_effect = lambda mensagem: None
 
     resposta = manager.desregistrar()
 
@@ -102,19 +114,21 @@ def main():
     print("Teste 7: UNREGISTER com falha OK")
 
     # Criamos outro gerenciador para não interferir nos testes anteriores
-    manager_refresh = RendezvousManeger(config)
+    mocker.stop()
+    manager_refresh = RendezvousManeger(cast(Config, config))
 
     contador = [0]
     lock = Lock()
 
     # Simula o servidor respondendo ao REGISTER
-    def servidor_simulado(mensagem):
+    def servidor_simulado(mensagem: str) -> dict[str, str | int]:
         with lock:
             contador[0] += 1
 
         return {"status": "OK", "ttl": 1, "ip": "127.0.0.1", "port": 8081}
 
-    manager_refresh.connectServer = servidor_simulado
+    mocker_refresh = patch.object(manager_refresh, "connectServer", side_effect=servidor_simulado)
+    mocker_refresh.start()
 
     # TESTE 8 - Renovação automática
     resposta = manager_refresh.registrar()
@@ -145,6 +159,7 @@ def main():
 
     assert manager_refresh.thread_refresh is None
     assert manager_refresh.parar_refresh is None
+    assert thread_original is not None
     assert not thread_original.is_alive()
 
     with lock:
@@ -157,9 +172,10 @@ def main():
 
     assert total_antes == total_depois
     print("Teste 10: Encerramento do refresh OK")
+    mocker_refresh.stop()
 
 
-def teste_rendezvous_real():
+def teste_rendezvous_real() -> None:
     config = carregaConfig()
     manager = RendezvousManeger(config)
 

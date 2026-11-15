@@ -1,11 +1,20 @@
 import logging
 import random
+from typing import Any
 
+from src.config.types import ConfigJogo
+from src.game.lobby.lobby import Lobby
 from src.interface.cli import mostrar_Game
-from src.network.rendezvous.funcionalidades.funcoes import descobrir_peers
+from src.network.rendezvous.RendezvousManeger import RendezvousManeger
 
 
-def executar_comando(args, game_host, config, lobby=None):
+def executar_comando(
+    args: dict[str, Any],
+    game_host: Any,
+    config: ConfigJogo,
+    lobby: Lobby | None = None,
+    rendezvous: RendezvousManeger | None = None,
+) -> dict[str, Any] | None:
     comando = args["comando"]
     # COMANDO DO HOST
     # Executar o /create
@@ -82,12 +91,12 @@ def executar_comando(args, game_host, config, lobby=None):
         if lobby is None:
             return None
         # Gera a mensagem LEAVE
-        mensagem = lobby.mensagemLEAVE()
-        if mensagem is None:
+        mensagem_leave = lobby.mensagemLEAVE()
+        if mensagem_leave is None:
             mostrar_Game("Você não está participando de nenhuma partida.")
             return None
         mostrar_Game("Solicitando a saída da partida...")
-        return mensagem
+        return mensagem_leave
 
     # COMANDO DO JOGADOR
     # Executar o /guess ou /word
@@ -100,13 +109,13 @@ def executar_comando(args, game_host, config, lobby=None):
             palpite = args["letra"]
         else:
             palpite = args["palavra"]
-        mensagem = lobby.game_player.gerar_guess(palpite)
-        if mensagem is None:
+        mensagem_guess: dict[str, Any] | None = lobby.game_player.gerar_guess(palpite)
+        if mensagem_guess is None:
             mostrar_Game(
                 "Não foi possível enviar o palpite. Verifique se você está jogando e se é sua vez."
             )
 
-        return mensagem
+        return mensagem_guess
 
     # Executar o /status
     elif comando == "/status":
@@ -114,7 +123,7 @@ def executar_comando(args, game_host, config, lobby=None):
         # Se não tem nenhuma partida, então o status é None
         if status is None:
             mostrar_Game("Nenhuma partida hospedada")
-            return
+            return None
         if status["estado"] == "OPEN":
             mostrar_Game(f"Game ID: {status['game_id']}")
             mostrar_Game(f"Estado Atual: {status['estado']}")
@@ -135,39 +144,40 @@ def executar_comando(args, game_host, config, lobby=None):
                 # Se já começou, exibe as informações do jogo
             if jogador.estado.name == "PLAYING":
                 mostra_status_jogo(status, config)
-                return
+                return None
 
         mostrar_Game("Você não está em nenhuma partida.")
 
     # COMANDOS DE REDE
     # Executando /peers
     elif comando == "/peers":
+        if rendezvous is None:
+            print("Rendezvous não disponível.")
+            return None
         filtro = args["filtro"]
         # Consulta os peers no rendezvous
-        peers = descobrir_peers()
-        peers_filter = []
-        # Se retornou None é pq deu errado
-        if peers is None:
+        resposta = rendezvous.descobrir_peers()
+        # Se retornou None ou ERROR é pq deu errado
+        if resposta is None or resposta["status"] != "OK":
             print("Não foi possível consultar os peers")
-            return
+            return None
+        peers = rendezvous.peers
         # Filtra por namespace
         if filtro is not None and filtro != "*":
             namespace = filtro[1:]
             # Só coloca em peers filtrados aqueles que tem o namespace desejado
-            for peer in peers:
-                if peer["namespace"] == namespace:
-                    peers_filter.append(peer)
+            peers_filter = [peer for peer in peers if peer["namespace"] == namespace]
         else:
             peers_filter = peers.copy()
 
         if len(peers_filter) == 0:
             print("Nenhum peer encontrado.")
-            return
+            return None
 
         # Exibe os peers
         print("Peers disponíveis:")
         for peer in peers_filter:
-            print(f"- {peer['name']}@{peer['namespace']} ({peer['ip']}:{peer['port']})")
+            print(f"- {peer['name']}@{peer['namespace']}")
 
     # Executando /conn
     elif comando == "/conn":
@@ -192,9 +202,11 @@ def executar_comando(args, game_host, config, lobby=None):
         logging.warning("Teste WARNING")
         logging.error("Teste ERROR")
 
+    return None
+
 
 # Status do jogo RUNNING - Mostra quando dá /status ou muda STATE
-def mostra_status_jogo(status, config):
+def mostra_status_jogo(status: dict[str, Any], config: ConfigJogo) -> None:
     mostrar_Game(f"{status['game_id']}  (host: {status['host_id']})  status: {status['estado']}")
     mostrar_Game(
         f"Palavra: {status['palavra_mask']}     Vidas: {status['vidas']} / {config['lives']}     Erradas: {', '.join(status['letras_erradas'])}"

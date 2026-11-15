@@ -1,40 +1,68 @@
 import hashlib
+from typing import TypedDict
 
 from src.game.fsm.MaqEstadosJogador import MaqEstadosJogadores
 
 
+class GameStartMessage(TypedDict):
+    game_id: str
+    players: list[str]
+    lives: int
+    word_hash: str
+    word_length: int
+
+
+class StateMessage(TypedDict):
+    game_id: str
+    seq: int
+    masked: str
+    wrong_letters: list[str]
+    lives: int
+    turn: str | None
+    players: list[str]
+    last_guess: dict[str, object] | None
+
+
+class GameOverMessage(TypedDict):
+    game_id: str
+    word: str
+    result: str
+    winner: str | None
+    scores: dict[str, int]
+
+
 class GamePlayer:
-    def __init__(self, player_id):
+    def __init__(self, player_id: str) -> None:
         # ATRIBUTOS
         self.player_id = player_id
 
         # Jogo que entrou
-        self.host_id = None  # Guarda quem é o host da partida
-        self.game_id = None  # Guarda o id da partida que está participoando
+        self.host_id: str | None = None  # Guarda quem é o host da partida
+        self.game_id: str | None = None  # Guarda o id da partida que está participoando
 
         # Estado do jogador
         self.estado = MaqEstadosJogadores.IDLE  # Ele inicia no estado IDLE
 
         # Informações que recebe do jogo
-        self.players = []  # Guarda quem está jogando a partida
-        self.vidas = None  # Guarda quantas vidas tem
+        self.players: list[str] = []  # Guarda quem está jogando a partida
+        self.vidas: int | None = None  # Guarda quantas vidas tem
         self.tam_word = 0  # Guarda o tamanho da palavra secreta
-        self.hash_word = None  # Guarda a o hash da palavra para conferir no final
-        self.mask_word = None  # Guarda o estado da palavra que está ttentando adivinhar
-        self.letras_erradas = []  # Guarda as letras que tentaram e tava errado
-        self.turno = None  # Guarda de quem é o turno
+        self.hash_word: str | None = None  # Guarda a o hash da palavra para conferir no final
+        self.mask_word: str | None = None  # Guarda o estado da palavra que está ttentando adivinhar
+        self.letras_erradas: list[str] = []  # Guarda as letras que tentaram e tava errado
+        self.turno: str | None = None  # Guarda de quem é o turno
 
         # Controle de atualização
         self.seq = 0
-        self.ultimaJogada = None  # Guarda a última jogada realizada
+        self.ultimaJogada: dict[str, object] | None = None  # Guarda a última jogada realizada
 
         # Informações finais
-        self.resultado = None  # Guarda o resultado da partida -> WON, LOST e ABORTED
-        self.vencedor = None  # Guarda quem acertou a palavra
+        self.resultado: str | None = None  # Guarda o resultado da partida -> WON, LOST e ABORTED
+        self.vencedor: str | None = None  # Guarda quem acertou a palavra
         self.pontuacao = 0  # Guarda a pontuação
 
     # Registra a entrada em uma partida
-    def entrar_Partida(self, game_id, host_id):
+    def entrar_Partida(self, game_id: str, host_id: str) -> bool:
         # Se o estado do jogador não for IDLE, então retorna
         if self.estado != MaqEstadosJogadores.IDLE:
             return False
@@ -49,7 +77,7 @@ class GamePlayer:
         return True
 
     # Recebe informações vindas da mensagem GAME_START do host
-    def receber_gameStart(self, mensagemHost):
+    def receber_gameStart(self, mensagemHost: GameStartMessage) -> bool:
         # Se o jogador não estiver no estado JOIN, então essa mensagem não é para ele
         if self.estado != MaqEstadosJogadores.JOINED:
             return False
@@ -67,7 +95,7 @@ class GamePlayer:
         return True
 
     # Atualiza seus dados de acordo com o STATE recebido
-    def atualizaState(self, mensagemHost):
+    def atualizaState(self, mensagemHost: StateMessage) -> bool:
         # Se o jogador não estiver jogando, ele não atualiza seu estado
         if self.estado != MaqEstadosJogadores.PLAYING:
             return False
@@ -93,12 +121,15 @@ class GamePlayer:
         return True
 
     # Gera a mensagem de GUESS
-    def gerar_guess(self, palpite):
+    def gerar_guess(self, palpite: str) -> dict[str, str] | None:
         # Se o jogador não estiver jogando, então não tem guess
         if self.estado != MaqEstadosJogadores.PLAYING:
             return None
         # Se não é o turno do jogador, também não tem guess
         if self.turno != self.player_id:
+            return None
+
+        if self.game_id is None:
             return None
 
         if len(palpite) == 1:
@@ -107,7 +138,7 @@ class GamePlayer:
             return {"type": "GUESS", "game_id": self.game_id, "word": palpite}
 
     # Recebe informações vindas da mensagem GAME_OVER do host
-    def receber_gameOver(self, mensagemHost):
+    def receber_gameOver(self, mensagemHost: GameOverMessage) -> bool | str:
         # Se o jogador não estiver no estado JOIN, então essa mensagem não é para ele
         if self.estado != MaqEstadosJogadores.PLAYING:
             return False
@@ -129,7 +160,7 @@ class GamePlayer:
         return True
 
     # Saída do jogo limpa o estado do jogador
-    def limpar_jogo(self):
+    def limpar_jogo(self) -> bool:
         self.host_id = None
         self.game_id = None
 
@@ -157,5 +188,5 @@ class GamePlayer:
         return True
 
     # Limpa o estado do jogador
-    def sair_jogo(self):
+    def sair_jogo(self) -> bool:
         return self.limpar_jogo()
