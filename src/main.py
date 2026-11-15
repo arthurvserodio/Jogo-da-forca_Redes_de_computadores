@@ -2,7 +2,14 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from src.config.carrega_config_jogo import carregar_config_jogo
 from src.config.loader import ConfigLoader
+from src.game.forca.gameHost import GameHost
+from src.game.forca.gamePlayer import GamePlayer
+from src.game.lobby.lobby import Lobby
+from src.interface.cli import interpretar_comando, mostrar_ajuda
+from src.interface.executar import executar_comando
+from src.network.rendezvous.RendezvousManeger import RendezvousManeger
 
 
 def main() -> None:
@@ -32,12 +39,67 @@ def main() -> None:
     # Criar o ConnectionManager
 
     # Registra no Rendezvous
+    config = carregar_config_jogo()
+    rendezvous = RendezvousManeger(config)
+    resposta = rendezvous.registrar()
+    if resposta is not None and resposta.get("status") == "OK":
+        print("Registrado no Rendezvous")
+    else:
+        erro = resposta.get("message") if resposta is not None else "Sem resposta do servidor"
+        print(f"Falha ao registrar no Rendezvous\nError: {erro}")
 
     # Descobre os Peers e faz conexão
+    # Descobrir os Peers e fazer conexão
+    resposta = rendezvous.descobrir_peers()
+    if resposta is not None and resposta.get("status") == "OK":
+        nomes = []
+        for peer in rendezvous.peers:
+            nomes.append(peer["name"])
+        print("Peers encontrados:", nomes)
+    else:
+        print("Falha ao descobrir peers")
 
+    # Criando elementos que são necessarios para a CLI
+    # ID do peer
+    peer_id = f"{config['name']}@{config['namespace']}"
+    # Componentes do jogo
+    game_host = GameHost(peer_id, config)
+    game_player = GamePlayer(peer_id)
+    lobby = Lobby(game_host, game_player)
     # Comandos da CLI
+    print(f"\nBem vindo ao PyP2P-Forca 26.2, {peer_id}!!!")
+    print("Digite /help para ver os comandos disponíveis.")
+    while True:
+        try:
+            entrada = input("\npyp2p-forca> ").strip()
+            # Ignora entradas vazias
+            if not entrada:
+                continue
+            # Interpreta o comando digitado
+            args = interpretar_comando(entrada)
+            if args is None:
+                continue
+            # Comando /help
+            if args["comando"] == "/help":
+                mostrar_ajuda()
+                continue
+            # Comando /quit
+            if args["comando"] == "/quit":
+                print("Encerrando o programa...")
+                break
+            # Executa os demais comandos
+            executar_comando(args, game_host, config, lobby, rendezvous)
+            # IMPELEMNTAR O ENVIO PELA REDE -> FUTURO
+
+        except ValueError as erro:
+            print(f"Comando inválido: {erro}")
+
+        except (EOFError, KeyboardInterrupt):
+            print("\nEncerrando o programa...")
+            break
 
     # Rotina de fechamento
+    rendezvous.desregistrar()
 
 
 if __name__ == "__main__":
