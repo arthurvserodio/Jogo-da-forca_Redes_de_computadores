@@ -191,6 +191,26 @@ SISTEMA:
 """)
 
 
-# Mostra a TAG de game
+# Padronização das mensagens vistas pelo usuario
+def mostrar_mensagem(origem: str, mensagem: str) -> None:
+    print(f"[{origem}] {mensagem}")
+
+
+# Mensagem do GAME
 def mostrar_Game(mensagem: str) -> None:
-    print(f"[GAME] {mensagem}")
+    mostrar_mensagem("GAME", mensagem)
+
+
+# Mensagem do HOST
+def mostrar_Host(mensagem: str) -> None:
+    mostrar_mensagem("HOST", mensagem)
+
+
+# Mensagem do Player
+def mostrar_Player(mensagem: str) -> None:
+    mostrar_mensagem("PLAYER", mensagem)
+
+
+# Mensagem da CLI
+def mostrar_Cli(mensagem: str) -> None:
+    mostrar_mensagem("CLI", mensagem)

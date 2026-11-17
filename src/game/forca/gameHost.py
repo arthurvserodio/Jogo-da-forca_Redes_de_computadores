@@ -48,31 +48,39 @@ class GameHost:
         self.motivo_fim: str | None = None  # Qual foi o motivo do fim quando abortou
         self.ultimo_estado: dict[str, object] | None = None  # Guarda o ultimo estado gerado
 
-    def criar_jogo(self, palavra: str, vidas: int, max_players: int | None = None) -> bool:
+    def criar_jogo(
+        self, palavra: str, vidas: int, max_players: int | None = None
+    ) -> dict[str, bool | str]:
         # Verifica se uma partida antiga já pode ser limpa
         self.limpar_jogo()
         # Só cria um jogo se o estado atual for IDLE
         if self.game_state != MaqEstadosJogo.IDLE:
-            return False
-        self.game_id = f"{self.host_id}/{secrets.token_hex(4)}"  # Gera um id aleatório para o jogo
+            return {
+                "aceito": False,
+                "mensagem": "Já existe uma partida ativa ou aguardando encerramento.",
+            }
         # Verifica a quantidade máxima de jogadores
         if max_players is None:
             self.max_players = self.max_playersConfig
         # Verifica se max_players passado é int
         elif type(max_players) is not int:
-            return False
+            return {"aceito": False, "mensagem": "O max_players informado não é um inteiro"}
         else:
             # Se o max players digitado pelo host não estiver entre 1 e a quantidade maxima prevista nas configurações, não pode criar a partida
             if not 1 <= max_players <= self.max_playersConfig:
-                return False
+                return {
+                    "aceito": False,
+                    "mensagem": "O max_players informado é menor que 1 ou maior que o limite máximo estabelecido pelas configurações",
+                }
             self.max_players = max_players
         self.forca = Forca(
             palavra, vidas
         )  # Cria uma instância do jogo da forca com a palavra e vidas fornecidas
+        self.game_id = f"{self.host_id}/{secrets.token_hex(4)}"  # Gera um id aleatório para o jogo
         self.game_state = (
             MaqEstadosJogo.OPEN
         )  # Muda o estado do jogo para OPEN, permitindo que jogadores se juntem
-        return True
+        return {"aceito": True, "mensagem": "Partida criada com sucesso!"}
 
     def cancelar_jogo(self) -> bool:
         # Só tem como cancelar o jogo que estiver no estado OPEN ou RUNNING
@@ -158,17 +166,17 @@ class GameHost:
 
         return "Player_removed_successfully"
 
-    def iniciar_jogo(self) -> bool:
+    def iniciar_jogo(self) -> dict[str, bool | str]:
         # Só inicia se tiver no estado OPEN e tiver pelo menos 1 jogador
         if self.game_state != MaqEstadosJogo.OPEN or len(self.players) == 0:
-            return False
+            return {"aceito": False, "mensagem": "A partida não está aberta ou n° de jogadores é 0"}
         self.game_state = MaqEstadosJogo.RUNNING  # Muda o estado para running
         self.turno_atual = self.players[
             0
         ]  # Define o primeiro jogador da lista como o jogador do turno atual
         self.inicio_turno = time.monotonic()
         self.gerar_estado()  # Gera o estado
-        return True
+        return {"aceito": True, "mensagem": "Partida iniciada!"}
 
     # Obter o status do jogo
     def obter_status(self) -> dict[str, object] | None:
@@ -414,6 +422,7 @@ class GameHost:
         if self.forca is None:
             return None
         return {
+            "type": "GAME_OVER",
             "game_id": self.game_id,
             "result": self.resultado,
             "word": self.forca.palavra,
@@ -433,6 +442,16 @@ class GameHost:
     ) -> dict[str, object]:
         # Se a jogada foi recusada então:
         if not resultado["aceito"]:
-            return {"game_id": self.game_id, "accepted": False, "reason": resultado["erro"]}
+            return {
+                "type": "GUESS_RESULT",
+                "game_id": self.game_id,
+                "accepted": False,
+                "reason": resultado["erro"],
+            }
         # Se a jogada foi processada retorna isso:
-        return {"game_id": self.game_id, "accepted": True, "correct": resultado["correto"]}
+        return {
+            "type": "GUESS_RESULT",
+            "game_id": self.game_id,
+            "accepted": True,
+            "correct": resultado["correto"],
+        }
