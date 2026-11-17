@@ -4,7 +4,8 @@ from typing import Any
 
 from src.config.types import ConfigJogo
 from src.game.lobby.lobby import Lobby
-from src.interface.cli import mostrar_Game
+from src.interface.cli import mostrar_Game, mostrar_Host, mostrar_Player
+from src.interface.desenha_forca import desenha_forca
 from src.network.rendezvous.RendezvousManeger import RendezvousManeger
 
 
@@ -34,26 +35,36 @@ def executar_comando(
         # Obtém a quantidade máxima de jogadores
         max_players = args["max_players"]
         sucesso = game_host.criar_jogo(palavra, config["lives"], max_players)
-        if sucesso:
-            print(
-                f"Partida criada! ID: {game_host.game_id} palavra: {palavra} máximo de jogadores: {game_host.max_players}"
+        if sucesso["aceito"]:
+            mostrar_Host(sucesso["mensagem"])
+            mostrar_Host(f"ID: {game_host.game_id}")
+            mostrar_Host(f"Palavra: {palavra} | Vidas: {config['lives']}")
+            mostrar_Host(
+                f"Jogadores: 0/{game_host.max_players} | Estado: {game_host.game_state.name}"
             )
         else:
-            print("Não foi possível criar a partida.")
+            mostrar_Host("Não foi possível criar a partida.")
+            mostrar_Host(sucesso["mensagem"])
     # Executar o /start
     elif comando == "/start":
         sucesso = game_host.iniciar_jogo()
-        if sucesso:
-            print("Partida iniciada!")
+        if sucesso["aceito"]:
+            mostrar_Host(sucesso["mensagem"])
+            mostrar_Host(f"Jogadores participanates: {game_host.players}")
+            mostrar_Host(f"Primeiro turno: {game_host.turno_atual}")
         else:
-            print("Não foi possível iniciar a partida.")
+            mostrar_Host("Não foi possível iniciar a partida.")
+            mostrar_Host(sucesso["mensagem"])
     # Executar o /cancel
     elif comando == "/cancel":
         sucesso = game_host.cancelar_jogo()
         if sucesso:
-            print("Partida cancelada!")
+            mostrar_Host("Partida cancelada pelo Host!")
         else:
-            print("Não foi possível cancelar a partida.")
+            if game_host.game_state.name != "OPEN":
+                mostrar_Host(
+                    "Não foi possível cancelar a partida, pois ela não abriu ou foi finalizada."
+                )
 
     # COMANDO DO LOOBY
     # Executar o /games
@@ -77,7 +88,7 @@ def executar_comando(
         partida = lobby.partidas_encontradas.get(host_id)
         # Se a partida não foi encontrada para esse host ou ela não está em OPEN, não tem como fazer o join
         if partida is None or partida["status"] != "OPEN":
-            mostrar_Game(f"Nenhuma partida aberta encontrada para {host_id}")
+            mostrar_Player(f"Nenhuma partida aberta encontrada para {host_id}")
             return None
 
         # Gera a solicitação JOIN
@@ -119,34 +130,41 @@ def executar_comando(
 
     # Executar o /status
     elif comando == "/status":
+        # Verifica se está hospedando uma partida
         status = game_host.obter_status()
-        # Se não tem nenhuma partida, então o status é None
+        # Caso não esteja hospedando, verifica a partida em que o peer participa
+        if status is None and lobby is not None:
+            jogador = lobby.game_player
+            if jogador.estado.name == "PLAYING":
+                status = {
+                    "game_id": jogador.game_id,
+                    "host_id": jogador.host_id,
+                    "estado": "RUNNING",
+                    "palavra_mask": " ".join(jogador.mask_word or ""),
+                    "vidas": jogador.vidas,
+                    "letras_erradas": jogador.letras_erradas,
+                    "jogadores": jogador.players,
+                    "turno_atual": jogador.turno,
+                }
+            elif jogador.estado.name == "JOINED":
+                mostrar_Game(f"Partida: {jogador.game_id}")
+                mostrar_Game(f"Host: {jogador.host_id}")
+                mostrar_Game("Estado: OPEN")
+                return None
         if status is None:
-            mostrar_Game("Nenhuma partida hospedada")
+            mostrar_Game("Nenhuma partida encontrada.")
             return None
         if status["estado"] == "OPEN":
-            mostrar_Game(f"Game ID: {status['game_id']}")
-            mostrar_Game(f"Estado Atual: {status['estado']}")
-            mostrar_Game(f"Jogadores: {len(status['jogadores'])}/{status['max_players']}")
+            mostrar_Game(f"Partida: {status['game_id']}")
+            mostrar_Game("Estado: OPEN")
+
+            if "jogadores" in status:
+                mostrar_Game(f"Jogadores: {len(status['jogadores'])}/{status['max_players']}")
         elif status["estado"] == "RUNNING":
             mostra_status_jogo(status, config)
         else:
-            mostrar_Game(f"Estado atual: {status['estado']}")
-
-        # Verifica se o peer está participando de uma partida
-        if lobby is not None:
-            jogador = lobby.game_player
-
-            if jogador.estado.name == "JOIN":
-                mostrar_Game(f"Game ID: {jogador.game_id}")
-                mostrar_Game(f"Host: {jogador.host_id}")
-                mostrar_Game(f"Estado atual: {jogador.estado.name}")
-                # Se já começou, exibe as informações do jogo
-            if jogador.estado.name == "PLAYING":
-                mostra_status_jogo(status, config)
-                return None
-
-        mostrar_Game("Você não está em nenhuma partida.")
+            mostrar_Game(f"Estado: {status['estado']}")
+        return None
 
     # COMANDOS DE REDE
     # Executando /peers
@@ -207,8 +225,81 @@ def executar_comando(
 
 # Status do jogo RUNNING - Mostra quando dá /status ou muda STATE
 def mostra_status_jogo(status: dict[str, Any], config: ConfigJogo) -> None:
+    vidas = status["vidas"]
+    # Descobre a quantidade de erros cometidos
+    erros = max(0, config["lives"] - vidas)
+    # Desenho da forca
+    print(desenha_forca(erros))
     mostrar_Game(f"{status['game_id']}  (host: {status['host_id']})  status: {status['estado']}")
     mostrar_Game(
         f"Palavra: {status['palavra_mask']}     Vidas: {status['vidas']} / {config['lives']}     Erradas: {', '.join(status['letras_erradas'])}"
     )
     mostrar_Game(f"Jogadores: {', '.join(status['jogadores'])}   Vez de: {status['turno_atual']}")
+
+
+# Mostra as mensagens finais do jogo
+def mostra_gameOver(mensagem: dict[str, Any]) -> None:
+    resultado = mensagem["result"]
+    palavra = mensagem["word"]
+    vencedor = mensagem.get("winner")
+    pontuacoes = mensagem.get("scores", {})
+
+    mostrar_Game("========== PARTIDA FINALIZADA ==========")
+
+    if resultado == "WON":
+        mostrar_Game("Resultado: VITÓRIA!")
+        mostrar_Game(f"Jogador que acertou: {vencedor}")
+
+    elif resultado == "LOST":
+        mostrar_Game("Resultado: DERROTA!")
+        mostrar_Game("Os jogadores ficaram sem vidas.")
+
+    elif resultado == "ABORTED":
+        motivos = {
+            "host_shutdown": "O host encerrou a partida.",
+            "no_players": "Todos os jogadores saíram.",
+        }
+        motivo = mensagem.get("reason", "unknown")
+        mostrar_Game("Resultado: PARTIDA ABORTADA")
+        mostrar_Game(f"Motivo: {motivos.get(motivo, motivo)}")
+
+    mostrar_Game(f"Palavra secreta: {palavra.upper()}")
+    mostrar_Game("========== RANKING ==========")
+
+    for jogador, pontos in pontuacoes.items():
+        mostrar_Game(f"  {jogador}: {pontos} pontos")
+
+    mostrar_Game("========================================")
+
+
+# Mostra o jogador que perdeu a vez por timeOut
+def mostra_timeOut(player_id: str) -> None:
+    mostrar_Game(f"O tempo de {player_id} acabou! Turno perdido.")
+
+
+# Mostra o jogador que perdeu a conexão
+def mostrar_desconexao(player_id: str) -> None:
+    mostrar_Host(f"{player_id} perdeu a conexão com a partida.")
+
+
+# Mostra o jogador que perdeu a conexão, conseguiu voltar ao jogo
+def mostrar_reconexao(player_id: str) -> None:
+    mostrar_Host(f"{player_id} reconectou-se à partida.")
+
+
+# Mostra as partidas encontradas e enviadas pela mensagem GAME_LIST
+def mostrar_partidas(partidas: dict[str, dict[str, Any]]) -> None:
+
+    if not partidas:
+        mostrar_Game("Nenhuma partida encontrada.")
+        return
+
+    mostrar_Game("========== PARTIDAS ENCONTRADAS ==========")
+
+    for host_id, partida in partidas.items():
+        mostrar_Game(f"Host: {host_id}    ID: {partida['game_id']}    Estado: {partida['status']}")
+        mostrar_Game(f"Jogadores: {len(partida['players'])}/{partida['max_players']}")
+        mostrar_Game(f"Vidas: {partida['lives']}    Tamanho da palavra: {partida['word_length']}")
+        mostrar_Game("-----------------------------------------")
+
+    mostrar_Game("Para entrar, utilize /join <host_peer_id>")

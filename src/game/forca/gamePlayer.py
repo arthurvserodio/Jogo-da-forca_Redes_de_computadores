@@ -2,6 +2,7 @@ import hashlib
 from typing import TypedDict
 
 from src.game.fsm.MaqEstadosJogador import MaqEstadosJogadores
+from src.interface.cli import mostrar_Player
 
 
 class GameStartMessage(TypedDict):
@@ -91,6 +92,9 @@ class GamePlayer:
         self.tam_word = mensagemHost["word_length"]
         self.mask_word = "_" * self.tam_word
         self.estado = MaqEstadosJogadores.PLAYING
+        mostrar_Player("A partida começou!")
+        mostrar_Player(f"Host: {self.host_id}")
+        mostrar_Player(f"Jogadores: {', '.join(self.players)}")
 
         return True
 
@@ -139,11 +143,23 @@ class GamePlayer:
 
     # Recebe informações vindas da mensagem GAME_OVER do host
     def receber_gameOver(self, mensagemHost: GameOverMessage) -> bool | str:
-        # Se o jogador não estiver no estado JOIN, então essa mensagem não é para ele
-        if self.estado != MaqEstadosJogadores.PLAYING:
-            return False
         # Se o game_id da mensagem não bate com o do jogador, então a mensagem também não é para ele
         if self.game_id != mensagemHost["game_id"]:
+            return False
+        # Cancelamento antes do início da partida
+        if self.estado == MaqEstadosJogadores.JOINED:
+            # Se o jogo não foi abortado, só continua
+            if mensagemHost["result"] != "ABORTED":
+                return False
+            # Se o motivo não foi pq o host deu um /cancel, continua
+            if mensagemHost.get("reason") != "host_shutdown":
+                return False
+            self.resultado = "ABORTED"
+            self.vencedor = None
+            self.estado = MaqEstadosJogadores.IDLE
+            return True
+        # Se o jogador não estiver no estado JOIN, então essa mensagem não é para ele
+        if self.estado != MaqEstadosJogadores.PLAYING:
             return False
         # Calcula o hash da palavra secreta
         hash_palavraOriginal = hashlib.sha256(mensagemHost["word"].encode("utf-8")).hexdigest()
@@ -186,6 +202,37 @@ class GamePlayer:
         self.pontuacao = 0
 
         return True
+
+    # Gera a mensagem de resultado da jogada para o player
+    def receber_guessResult(self, mensagem: dict[str, object]) -> bool:
+        # Verifica se a resposta pertence à partida
+        if mensagem.get("game_id") != self.game_id:
+            return False
+        # Verifica se é um guess result
+        if mensagem.get("type") != "GUESS_RESULT":
+            return False
+        # Se o palpite foi recusado
+        if mensagem.get("accepted") is False:
+            erros_guess = {
+                "game_not_running": "A partida não está em andamento.",
+                "not_in_game": "Você não está participando da partida.",
+                "not_your_turn": "Não é sua vez de jogar.",
+                "invalid_guess_type": "Tipo de palpite inválido.",
+                "invalid_letter": "Letra inválida.",
+                "invalid_word": "Palavra inválida.",
+                "letter_already_used": "Essa letra já foi utilizada.",
+            }
+            motivo = mensagem.get("reason", "unknown_error")
+            mostrar_Player(f"Palpite recusado: {erros_guess.get(str(motivo), str(motivo))}")
+            return True
+        # Se o palpite foi aceito
+        if mensagem.get("accepted") is True:
+            if mensagem.get("correct") is True:
+                mostrar_Player("Palpite correto!")
+            else:
+                mostrar_Player("Palpite incorreto.")
+            return True
+        return False
 
     # Limpa o estado do jogador
     def sair_jogo(self) -> bool:

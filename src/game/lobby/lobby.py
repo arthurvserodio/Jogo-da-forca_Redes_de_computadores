@@ -1,5 +1,7 @@
 from typing import Any
 
+from src.interface.cli import mostrar_Host, mostrar_Player
+
 
 class Lobby:
     def __init__(self, game_host: Any, game_player: Any) -> None:
@@ -60,10 +62,13 @@ class Lobby:
 
         # Se a partida não existe, retorna JOIN_ERR
         if self.game_host.game_id != game_id:
+            mostrar_Host(f"Entrada de {player_id} recusada: jogo não encontrado")
             return {"type": "JOIN_ERR", "game_id": game_id, "reason": "unknown_game"}
         # Solicita a entrada ao GameHost
         resultado = self.game_host.adicionar_jogador(player_id)
         if resultado == "join_ok":
+            mostrar_Host(f"{player_id} entrou na partida")
+            mostrar_Host(f"Jogadores: ({len(self.game_host.players)}/{self.game_host.max_players})")
             return {
                 "type": "JOIN_OK",
                 "game_id": game_id,
@@ -73,6 +78,7 @@ class Lobby:
 
         # Se for uma reconexão
         if resultado == "rejoin_ok":
+            mostrar_Host(f"{player_id} reconectou-se à partida.")
             return {
                 "type": "JOIN_OK",
                 "game_id": game_id,
@@ -80,6 +86,14 @@ class Lobby:
                 "rejoin": True,
             }
         else:
+            erros_join = {
+                "already_joined": "O jogador já está na partida.",
+                "game_finished": "A partida já foi finalizada.",
+                "game_full": "A partida está cheia.",
+                "game_running": "A partida já está em andamento.",
+                "game_not_open": "A partida não está aberta.",
+            }
+            mostrar_Host(f"Entrada de {player_id} recusada: {erros_join.get(resultado, resultado)}")
             return {"type": "JOIN_ERR", "game_id": game_id, "reason": resultado}
 
     # Sua solicitação para entrar na partida foi aprovada
@@ -96,9 +110,15 @@ class Lobby:
             # Se o jogador não ta no estado playing, não entra
             if self.game_player.estado.name != "PLAYING":
                 return False
+            mostrar_Player("Reconexão com a partida realizada!")
             return True
         # Entrada normal
-        return bool(self.game_player.entrar_Partida(mensagem["game_id"], mensagem["src"]))
+        sucesso = self.game_player.entrar_Partida(mensagem["game_id"], mensagem["src"])
+        if sucesso:
+            mostrar_Player(f"Você entrou na partida({self.game_player.game_id}) com sucesso!")
+            mostrar_Player(f"Aguardando o host({self.game_player.host_id}) iniciar a partida...")
+
+        return bool(sucesso)
 
     # Gera a mensagem de solicitação para sair em uma partida
     def mensagemLEAVE(self) -> dict[str, Any] | None:
@@ -112,6 +132,7 @@ class Lobby:
         if mensagem["type"] != "LEAVE_OK" or mensagem["game_id"] != self.game_player.game_id:
             return False
         self.game_player.sair_jogo()
+        mostrar_Player("Você saiu da partida com sucesso!")
         return True
 
     def processa_Leave(self, mensagem: dict[str, Any]) -> dict[str, Any] | None:
@@ -126,4 +147,24 @@ class Lobby:
             return None
 
         # Retorna LEAVE_OK
+        mostrar_Host(f"{player_id} saiu da partida")
+        mostrar_Host(f"Jogadores: ({len(self.game_host.players)}/{self.game_host.max_players})")
         return {"type": "LEAVE_OK", "game_id": mensagem["game_id"]}
+
+    # Processa o que aparece para o jogador ao receber um JOIN_ERR
+    def recebe_JoinErr(self, mensagem: dict[str, Any]) -> bool:
+        # Se não for do tipo join error, então faz nada
+        if mensagem.get("type") != "JOIN_ERR":
+            return False
+        erros_join = {
+            "unknown_game": "A partida não existe.",
+            "already_joined": "Você já está na partida.",
+            "game_finished": "A partida já foi finalizada.",
+            "game_full": "A partida está cheia.",
+            "game_running": "A partida já está em andamento.",
+            "game_not_open": "A partida não está aberta.",
+        }
+        motivo = mensagem.get("reason", "unknown_error")
+        mostrar_Player(f"Entrada recusada: {erros_join.get(motivo, motivo)}")
+
+        return True
