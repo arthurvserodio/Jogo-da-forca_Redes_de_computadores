@@ -154,9 +154,8 @@ class GamePlayer:
             # Se o motivo não foi pq o host deu um /cancel, continua
             if mensagemHost.get("reason") != "host_shutdown":
                 return False
-            self.resultado = "ABORTED"
-            self.vencedor = None
-            self.estado = MaqEstadosJogadores.IDLE
+
+            self.limpar_jogo()
             return True
         # Se o jogador não estiver no estado JOIN, então essa mensagem não é para ele
         if self.estado != MaqEstadosJogadores.PLAYING:
