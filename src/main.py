@@ -36,10 +36,6 @@ def conectar_descobertos(
         if resposta is None or resposta.get("status") != "OK":
             print("[REDE] Falha ao descobrir peers no Rendezvous")
             return
-        ips_teste = {
-            "grupo8COPIA@CIC": "192.168.0.188",  # Debian
-            "grupo8TESTE@CIC": "192.168.0.114",       # Segundo peer Windows
-        }
         for encontrado in rendezvous.peers:
             dados = cast(dict[str, Any], encontrado)
             # Informações para realizar a conexão
@@ -57,10 +53,6 @@ def conectar_descobertos(
                 print(f"[REDE] {peer_id} descoberto sem IP/porta: {dados!r}")
                 continue
             try:
-                # Utilizar o IP local do Debian apenas para testes.
-                # IPs utilizados apenas nos testes locais
-                if peer_id in ips_teste:
-                    endereco_ip = ips_teste[peer_id]
                 peer = Peer(
                     name=nome,
                     namespace=namespace,
