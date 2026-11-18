@@ -9,6 +9,7 @@ from src.interface.desenha_forca import desenha_forca
 from src.network.rendezvous.RendezvousManeger import RendezvousManeger
 
 
+logger = logging.getLogger(__name__)
 def executar_comando(
     args: dict[str, Any],
     game_host: Any,
@@ -36,6 +37,12 @@ def executar_comando(
         max_players = args["max_players"]
         sucesso = game_host.criar_jogo(palavra, config["lives"], max_players)
         if sucesso["aceito"]:
+            logger.info(
+                "Partida criada | game_id=%s | host=%s | max_players=%s",
+                game_host.game_id,
+                game_host.host_id,
+                game_host.max_players,
+            )
             mostrar_Host(sucesso["mensagem"])
             mostrar_Host(f"ID: {game_host.game_id}")
             mostrar_Host(f"Palavra: {palavra} | Vidas: {config['lives']}")
@@ -45,6 +52,10 @@ def executar_comando(
         else:
             mostrar_Host("Não foi possível criar a partida.")
             mostrar_Host(sucesso["mensagem"])
+            logger.warning(
+                "Falha ao criar partida | motivo=%s",
+                sucesso["mensagem"],
+            )
     # Executar o /start
     elif comando == "/start":
         sucesso = game_host.iniciar_jogo()
@@ -213,12 +224,14 @@ def executar_comando(
     # Executando /log
     elif comando == "/log":
         nivel = args["nivel"]
-        logging.getLogger().setLevel(getattr(logging, nivel))
-        print(f"Nível de log alterado para {nivel}")
-        logging.debug("Teste DEBUG")
-        logging.info("Teste INFO")
-        logging.warning("Teste WARNING")
-        logging.error("Teste ERROR")
+        novo_nivel = getattr(logging, nivel)
+        root = logging.getLogger()
+        for handler in root.handlers:
+            if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
+                handler.setLevel(novo_nivel)
+
+        print(f"[CLI] Nível de log do terminal alterado para {nivel}")
+        logging.getLogger(__name__).info("Nível de log do terminal alterado para %s", nivel)
 
     return None
 

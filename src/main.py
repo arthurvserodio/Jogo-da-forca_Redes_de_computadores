@@ -7,6 +7,7 @@ from typing import Any, cast
 
 from pydantic import ValidationError
 
+from src.utils.logger import configurar_logs
 from src.config.carrega_config_jogo import carregar_config_jogo
 from src.config.loader import ConfigLoader
 from src.domain.peer import Peer, PeerAddress
@@ -35,6 +36,10 @@ def conectar_descobertos(
         if resposta is None or resposta.get("status") != "OK":
             print("[REDE] Falha ao descobrir peers no Rendezvous")
             return
+        ips_teste = {
+            "grupo8COPIA@CIC": "192.168.0.188",  # Debian
+            "grupo8TESTE@CIC": "192.168.0.114",       # Segundo peer Windows
+        }
         for encontrado in rendezvous.peers:
             dados = cast(dict[str, Any], encontrado)
             # Informações para realizar a conexão
@@ -53,9 +58,9 @@ def conectar_descobertos(
                 continue
             try:
                 # Utilizar o IP local do Debian apenas para testes.
-                if peer_id == "grupo8COPIA@CIC":
-                    endereco_ip = "192.168.0.188"
-
+                # IPs utilizados apenas nos testes locais
+                if peer_id in ips_teste:
+                    endereco_ip = ips_teste[peer_id]
                 peer = Peer(
                     name=nome,
                     namespace=namespace,
@@ -70,6 +75,7 @@ def conectar_descobertos(
             except (OSError, ValueError) as erro:
                 logger.debug("Não foi possível conectar a %s: %s", peer_id, erro)
 
+# Usado para descobrir peers periodicamente
 def descoberta_periodica(
     rede: ConnectionManager,
     rendezvous: RendezvousManeger,
@@ -98,7 +104,6 @@ def main() -> None:
 
     try:
         settings = ConfigLoader(file_path).load()
-        print(settings.model_dump_json(indent=2))
 
     # Validar as configurações
     except ValidationError as error:
@@ -112,6 +117,14 @@ def main() -> None:
     except (OSError, UnicodeError) as error:
         print("Não foi possível ler arquivo de configurações: ", error)
         return
+    # Configurando o logger
+    caminho_log = (
+        project_root / settings.log_file
+        if settings.log_file is not None
+        else project_root / "logs" / "pyp2p-forca.log"
+    )
+    configurar_logs(caminho_log, nivel_console="ERROR")
+    logger.info("Iniciando PyP2P-Forca")
 
     config = carregar_config_jogo()
     # ID do peer
@@ -209,6 +222,9 @@ def main() -> None:
                     continue
                 # Comando /quit
                 if comando == "/quit":
+                    with roteador.host_lock:
+                        if game_host.game_state.name in ("OPEN", "RUNNING"):
+                            roteador.cancelar_partida()
                     print("Encerrando o programa...")
                     break
                 elif comando == "/reconnect":
@@ -263,6 +279,7 @@ def main() -> None:
         parar_descoberta.set()
         parar_turnos.set()
         thread_turnos.join()
+        logger.info("Encerrando aplicação")
         if thread_descoberta is not None:
             thread_descoberta.join()
         # Fecha primeiro as conexões; depois remove o anúncio no Rendezvous.
@@ -270,6 +287,7 @@ def main() -> None:
         if rendezvous.registrado:
             # Rotina de fechamento
             rendezvous.desregistrar()
+        logger.info("Aplicação encerrada")
 
 
 if __name__ == "__main__":

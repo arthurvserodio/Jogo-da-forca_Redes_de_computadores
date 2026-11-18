@@ -1,4 +1,5 @@
 import logging
+import json
 import time
 import socket
 import uuid
@@ -179,8 +180,11 @@ class ConnectionManager:
 
         if connection.outgoing:
             msg_id = str(uuid.uuid4())
-            connection.send(self._hello("HELLO", msg_id))
+            hello = self._hello("HELLO", msg_id)
+            connection.send(hello)
+            logger.debug("TX HELLO: %s", json.dumps(hello, ensure_ascii=False))
             resposta = connection.receive()
+            logger.debug("RX HELLO_OK: %s", json.dumps(resposta, ensure_ascii=False))
             peer = self._read_identity(resposta, "HELLO_OK")
             if resposta is None or resposta.get("msg_id") != msg_id:
                 raise ProtocolError("HELLO_OK não corresponde ao HELLO enviado")
@@ -192,11 +196,18 @@ class ConnectionManager:
                 )
         else:
             pedido = connection.receive()
+            logger.debug("RX HELLO: %s", json.dumps(pedido, ensure_ascii=False))
             peer = self._read_identity(pedido, "HELLO")
             if pedido is None:
                 raise ProtocolError("HELLO ausente")
 
-            connection.send(self._hello("HELLO_OK", str(pedido["msg_id"])))
+            hello_ok = self._hello("HELLO_OK", str(pedido["msg_id"]))
+            connection.send(hello_ok)
+
+            logger.debug(
+                "TX HELLO_OK: %s",
+                json.dumps(hello_ok, ensure_ascii=False),
+            )
 
         connection.set_timeout(None)
         return peer
@@ -274,12 +285,20 @@ class ConnectionManager:
 
                 if message is None:
                     break
+                logger.debug(
+                    "RX de %s: %s",
+                    peer.peer_id,
+                    json.dumps(message, ensure_ascii=False),
+                )
                 if message.get("type") == "BYE":
                     if (message.get("ttl") == 1 and isinstance(message.get("msg_id"), str)):
                         connection.send({
                             "type": "BYE_OK",
                             "msg_id": message["msg_id"],
+                            "src": self._local_peer.peer_id,
+                            "dst": peer.peer_id,
                             "ttl": 1,
+                            "reason": "quit",
                         })
                         encerramento_voluntario = True
                         break
@@ -428,9 +447,15 @@ class ConnectionManager:
             connection = self._connections.get(peer_id)
 
         if connection is None:
+            logger.warning("Tentativa de envio para peer desconectado: %s", peer_id)
             raise RuntimeError(f"Peer com ID {peer_id} desconhecido")
 
         connection.send(message)
+        logger.debug(
+            "TX para %s: %s",
+            peer_id,
+            json.dumps(message, ensure_ascii=False),
+        )
 
     def reset_reconnect(self, peer_id: str | None = None) -> None:
         with self._lock:
@@ -450,6 +475,10 @@ class ConnectionManager:
                 return
             self._stopping = True
             conexoes_ativas = list(self._connections.values())
+            ids_por_conexao = {
+                conexao: peer_id
+                for peer_id, conexao in self._connections.items()
+            }
             connections = set(conexoes_ativas) | self._pending
             confirmacoes: list[Event] = []
             for connection in conexoes_ativas:
@@ -460,16 +489,27 @@ class ConnectionManager:
 
         # Não manter self._lock enquanto envia ou aguarda ACKs.
         for connection in conexoes_ativas:
+            peer_id = ids_por_conexao[connection]
             with self._lock:
                 pendente = self._bye_pending.get(connection)
             if pendente is None:
                 continue
             try:
-                connection.send({
+                bye = {
                     "type": "BYE",
                     "msg_id": pendente[0],
+                    "src": self._local_peer.peer_id,
+                    "dst": peer_id,
                     "ttl": 1,
-                })
+                    "reason": "quit",
+                }
+
+                connection.send(bye)
+                logger.debug(
+                    "TX BYE: %s",
+                    json.dumps(bye, ensure_ascii=False),
+                )
+
             except (OSError, RuntimeError, ValueError) as erro:
                 logger.debug("Não foi possível enviar BYE: %s", erro)
 

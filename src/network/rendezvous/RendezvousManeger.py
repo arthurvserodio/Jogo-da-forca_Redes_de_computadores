@@ -1,4 +1,5 @@
 import json
+import logging
 from socket import AF_INET, SOCK_STREAM, gaierror, socket
 from threading import Event, Thread
 from typing import cast
@@ -17,7 +18,7 @@ from .types import (
     ResponseServer,
 )
 
-
+logger = logging.getLogger(__name__)
 class RendezvousManeger:
     def __init__(self, config: Config | Settings) -> None:
         # Pega informações do arquivo de configurações
@@ -101,10 +102,20 @@ class RendezvousManeger:
     def registrar(self) -> ResponseServer | None:
         # Pega a mensagem register e envia ao servidor
         mensagem = REGISTER(self.config)
+        logger.debug("REGISTER enviado ao Rendezvous")
         respostaServer = self.connectServer(mensagem)
         # Se a resposta existir e tiver status OK, o peer está registrado
         if respostaServer is not None and respostaServer["status"] == "OK":
             self.registrado = True
+            logger.info(
+                "REGISTER realizado com sucesso | ttl=%s",
+                respostaServer.get("ttl"),
+            )
+        else:
+            logger.warning(
+                "Falha no REGISTER | resposta=%s",
+                respostaServer,
+            )
         # Retorna a mensagem dada pelo servidor
         return respostaServer
 
@@ -112,6 +123,7 @@ class RendezvousManeger:
     def descobrir_peers(self) -> ResponseServer | None:
         # Monta a mensasgem de discover para ser enviada
         mensagem = DISCOVER(self.config)
+        logger.debug("DISCOVER enviado ao Rendezvous")
         respostaServer = self.connectServer(mensagem)
         # Se a resposta existir e tiver status OK, pegamos a lista de peers
         if respostaServer is not None and respostaServer["status"] == "OK":
@@ -119,6 +131,16 @@ class RendezvousManeger:
 
             if isinstance(peers, list):
                 self.peers = filtro_discover(peers, self.config)
+                logger.debug(
+                    "DISCOVER realizado | peers encontrados=%d",
+                    len(self.peers),
+                )
+        else:
+            logger.warning(
+                "Falha no DISCOVER | resposta=%s",
+                respostaServer,
+            )
+
         # Retorna a mensagem dada pelo servidor
         return respostaServer
 
@@ -128,10 +150,17 @@ class RendezvousManeger:
         self.termina_refresh()
         # Monta a mensasgem de unregister para ser enviada
         mensagem = UNREGISTER(self.config)
+        logger.debug("UNREGISTER enviado ao Rendezvous")
         respostaServer = self.connectServer(mensagem)
         # Se a resposta existir e tiver status OK, o peer foi desregistrado
         if respostaServer is not None and respostaServer["status"] == "OK":
             self.registrado = False
+            logger.info("UNREGISTER realizado com sucesso")
+        else:
+            logger.warning(
+                "Falha no UNREGISTER | resposta=%s",
+                respostaServer,
+            )
         # Retorna a mensagem dada pelo servidor
         return respostaServer
 

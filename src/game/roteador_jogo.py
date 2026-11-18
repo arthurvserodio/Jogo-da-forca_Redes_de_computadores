@@ -1,4 +1,5 @@
 import uuid
+import logging
 from typing import Any, cast
 from threading import RLock
 
@@ -18,6 +19,7 @@ from src.interface.executar import mostra_status_jogo
 from src.config.types import ConfigJogo
 
 
+logger = logging.getLogger(__name__)
 # Ponte entre a implementação do TCP e a lógica do jogo
 class RoteadorJogo:
     def __init__(self, lobby: Lobby, config: ConfigJogo) -> None:
@@ -108,17 +110,25 @@ class RoteadorJogo:
     def receber_mensagem(self, peer: Peer, mensagem: Message) -> None:
             tipo = mensagem.get("type")
             dados = cast(dict[str, Any], mensagem)
-            if mensagem.get("type") == "GAME_OVER":
-                print(f"[DEBUG PLAYER] GAME_OVER chegou de {peer.peer_id}")
-                print(f"[DEBUG PLAYER] Conteúdo: {mensagem}")
+            logger.debug(
+                "Mensagem recebida | origem=%s | tipo=%s | msg_id=%s",
+                peer.peer_id,
+                tipo,
+                mensagem.get("msg_id"),
+            )
             if (
                 mensagem.get("ttl") != 1
                 or mensagem.get("src") != peer.peer_id
                 or mensagem.get("dst") != self.local_peer_id
                 or not isinstance(mensagem.get("msg_id"), str)
             ):
-                print(f"[REDE] Envelope inválido de {peer.peer_id}: {tipo}")
+                logger.warning(
+                    "Envelope inválido | peer=%s | tipo=%s",
+                    peer.peer_id,
+                    tipo,
+                )
                 return
+            
             if tipo == "GAME_LIST":
                 with self.host_lock:
                     resposta = self.lobby.GameList_Ok()
@@ -137,6 +147,12 @@ class RoteadorJogo:
             elif tipo == "JOIN":
                 with self.host_lock:
                     resposta = self.lobby.processar_JOIN(dados)
+                    logger.info(
+                        "JOIN processado | jogador=%s | partida=%s | resposta=%s",
+                        peer.peer_id,
+                        dados.get("game_id"),
+                        resposta.get("type"),
+                    )
                     # Envia JOIN_OK ou JOIN_ERR.
                     self._enviar(peer.peer_id,self._envelope(peer.peer_id,resposta,str(dados["msg_id"])))
 
@@ -176,6 +192,13 @@ class RoteadorJogo:
 
                 atualizado = jogador.atualizaState(cast(StateMessage, dados))
                 if atualizado:
+                    logger.debug(
+                        "STATE aplicado | partida=%s | seq=%s | vidas=%s | turno=%s",
+                        dados.get("game_id"),
+                        dados.get("seq"),
+                        dados.get("lives"),
+                        dados.get("turn"),
+                    )
                     status = {
                         "game_id": jogador.game_id,
                         "host_id": jogador.host_id,
@@ -187,6 +210,12 @@ class RoteadorJogo:
                         "turno_atual": jogador.turno,
                     }
                     mostra_status_jogo(status, self.config)
+                else:
+                    logger.debug(
+                        "STATE ignorado | partida=%s | seq=%s",
+                        dados.get("game_id"),
+                        dados.get("seq"),
+                    )
 
 
             elif tipo == "GUESS_RESULT":
@@ -199,8 +228,6 @@ class RoteadorJogo:
 
             elif tipo == "GAME_OVER":
                 jogador = self.lobby.game_player
-                print(f"[DEBUG PLAYER] Host esperado: {jogador.host_id}")
-                print(f"[DEBUG PLAYER] Host recebido: {peer.peer_id}")
                 if peer.peer_id != jogador.host_id:
                     print("[DEBUG PLAYER] Mensagem rejeitada: host incorreto")
                     return
@@ -208,8 +235,24 @@ class RoteadorJogo:
                     print("[DEBUG] GAME_OVER ignorado: host diferente")
                     return
                 resultado = jogador.receber_gameOver(cast(GameOverMessage, dados))
-                print(f"[DEBUG PLAYER] Resultado: {resultado}")
-                print(f"[DEBUG PLAYER] Estado atual: {jogador.estado.name}")
+                if resultado is True:
+                    logger.info(
+                        "GAME_OVER recebido | partida=%s | resultado=%s | estado=%s",
+                        dados.get("game_id"),
+                        dados.get("result"),
+                        jogador.estado.name,
+                    )
+                elif isinstance(resultado, str):
+                    logger.warning(
+                        "GAME_OVER rejeitado | partida=%s | motivo=%s",
+                        dados.get("game_id"),
+                        resultado,
+                    )
+                else:
+                    logger.debug(
+                        "GAME_OVER ignorado | partida=%s",
+                        dados.get("game_id"),
+                    )
                 
                 if resultado is True:
                     mostra_gameOver(dados)
@@ -251,8 +294,17 @@ class RoteadorJogo:
             resultado = host.iniciar_jogo()
             if not resultado["aceito"]:
                 print(f"[HOST] {resultado['mensagem']}")
+                logger.warning(
+                    "Falha ao iniciar partida | motivo=%s",
+                    resultado["mensagem"],
+                )
                 return
-
+            logger.info(
+                "Partida iniciada | game_id=%s | jogadores=%s | primeiro_turno=%s",
+                host.game_id,
+                host.players,
+                host.turno_atual,
+            )
             print(f"[HOST] {resultado['mensagem']}")
             print(f"[HOST] Jogadores: {', '.join(host.players)}")
             print(f"[HOST] Primeiro turno: {host.turno_atual}")
@@ -302,6 +354,15 @@ class RoteadorJogo:
             seq_anterior = host.seq
             # Processa a jogada utilizando o GameHost
             resultado = host.processar_jogada(peer.peer_id,tipo,palpite)
+            logger.info(
+                "GUESS processado | partida=%s | jogador=%s | tipo=%s | "
+                "aceito=%s | resultado=%s",
+                host.game_id,
+                peer.peer_id,
+                tipo,
+                resultado.get("aceito"),
+                resultado,
+            )
             # Responde apenas ao jogador que enviou o palpite
             resposta = host.gerar_guessResult(resultado)
 
@@ -330,6 +391,10 @@ class RoteadorJogo:
     # Tratando das desconexões por meio do PING PONG - se percebeu que não ta respondendo, retira o jogador
     def tratar_desconexao(self, peer: Peer) -> None:
         with self.host_lock:
+            logger.warning(
+                "Peer desconectado | peer=%s",
+                peer.peer_id,
+            )
             host = self.lobby.game_host
             jogador = self.lobby.game_player
 
@@ -349,10 +414,19 @@ class RoteadorJogo:
            # Preservar os dados para tentar recuperar a sessão depois.
             if jogador.host_id == peer.peer_id:
                 mostrar_Player(f"Host {peer.peer_id} indisponível — tentando reconectar.")
+                logger.warning(
+                    "Host da partida indisponível | host=%s | partida=%s",
+                    peer.peer_id,
+                    jogador.game_id,
+                )
 
     # Tratar a reconexão de quem caiu do jogo
     def tratar_reconexao(self, peer: Peer) -> None:
         with self.host_lock:
+            logger.info(
+                "Peer reconectado | peer=%s",
+                peer.peer_id,
+            )
             jogador = self.lobby.game_player
             # Verifica se o peer reconectado é o host da partida atual.
             if (
@@ -377,6 +451,12 @@ class RoteadorJogo:
             jogador = host.verifica_timeout()
             if jogador is False:
                 return
+            logger.warning(
+                "Timeout de turno | partida=%s | jogador=%s | novo_turno=%s",
+                host.game_id,
+                jogador,
+                host.turno_atual,
+            )
             # Teve timeout, novo STATE
             estado = host.obter_UltimoEstado()
             print(f"[HOST] Tempo esgotado para {jogador}.")
@@ -402,6 +482,11 @@ class RoteadorJogo:
                 return
 
             print("[HOST] Partida cancelada!")
+            logger.warning(
+                "Partida abortada pelo host | game_id=%s | participantes=%s",
+                host.game_id,
+                jogadores,
+            )
 
             game_over = host.gerar_gameOver()
             if game_over is None:
@@ -409,12 +494,15 @@ class RoteadorJogo:
 
             # Informa o cancelamento aos jogadores.
             for player_id in jogadores:
-                try:
-                    print(f"[DEBUG HOST] Enviando GAME_OVER para {player_id}")
-                    print(f"[DEBUG HOST] Mensagem: {game_over}")        
+                try:     
                     self._enviar(player_id,self._envelope(player_id, game_over))
                 except (OSError, RuntimeError) as erro:
                     print(f"[HOST] Falha ao enviar GAME_OVER para {player_id}: {erro}")
+                    logger.error(
+                        "Falha ao enviar GAME_OVER | jogador=%s | erro=%s",
+                        player_id,
+                        erro,
+                    )
 
             # Exibe o encerramento também no host.
             mostra_gameOver(game_over)
